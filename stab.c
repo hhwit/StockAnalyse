@@ -1,3 +1,7 @@
+/*
+ * huang hongwen <hhwit@126.com> 2021-07-21
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,11 +17,13 @@ static int gyesclose = 0;
 static int gtoclose = 0;
 static int ghigh = 0;
 static int glow = 0;
-static int gvolume = 0;
-static int gturnover = 0;
+static long long gvolume = 0;
+static long long gturnover = 0;
 
 static char *comma[64];
 static int cnum;
+
+static int is_one_stab(char *code, char *date1, char *date2, char *date3);
 
 static int get_commas(char *data)
 {
@@ -56,10 +62,70 @@ static int string_check(char *s)
 	return 0;
 }
 
-static int string_to_int(char *s)
+static long long str_to_decimal(int order, char s)
 {
-	int i, j, a, n, m;
+	long long a = 0;
+	long long b = s - '0';
+	switch (order) {
+	case 1:
+		a = b * 100;
+		break;
+	case 2:
+		a = b * 1000;
+		break;
+	case 3:
+		a = b * 10000;
+		break;
+	case 4:
+		a = b * 100000;
+		break;
+	case 5:
+		a = b * 1000000;
+		break;
+	case 6:
+		a = b * 10000000;
+		break;
+	case 7:
+		a = b * 100000000;
+		break;
+	case 8:
+		a = b * 1000000000;
+		break;
+	case 9:
+		a = b * 10000000000;
+		break;
+	case 10:
+		a = b * 100000000000;
+		break;
+	case 11:
+		a = b * 1000000000000;
+		break;
+	case 12:
+		a = b * 10000000000000;
+		break;
+	case 13:
+		a = b * 100000000000000;
+		break;
+	case 14:
+		a = b * 1000000000000000;
+		break;
+	case 15:
+		a = b * 10000000000000000;
+		break;
+	case 16:
+		a = b * 100000000000000000;
+		break;
+	default:
+		printf("Wrong number formate: %d\n", order);
+	}
+	return a;
+}
+
+static long long string_to_int(char *s)
+{
 	char *p;
+	long long a;
+	int i, j, n, m;
 	int l = strlen(s);
 	if (l <= 0) return -1;
 	if (string_check(s) < 0) return -1;
@@ -72,38 +138,7 @@ static int string_to_int(char *s)
 		m = 0;
 	}
 	for (i = 0, j = n, a = 0; i < n; i ++, j --) {
-		switch (j) {
-		case 1:
-			a += (s[i] - '0') * 100;
-			break;
-		case 2:
-			a += (s[i] - '0') * 1000;
-			break;
-		case 3:
-			a += (s[i] - '0') * 10000;
-			break;
-		case 4:
-			a += (s[i] - '0') * 100000;
-			break;
-		case 5:
-			a += (s[i] - '0') * 1000000;
-			break;
-		case 6:
-			a += (s[i] - '0') * 10000000;
-			break;
-		case 7:
-			a += (s[i] - '0') * 100000000;
-			break;
-		case 8:
-			a += (s[i] - '0') * 1000000000;
-			break;
-		case 9:
-			a += (s[i] - '0') * 10000000000;
-			break;
-		default:
-			printf("Wrong number formate: %s\n", s);
-			return -1;
-		}
+		a += str_to_decimal(j, s[i]);
 	}
 	if (m >= 2)
 		a += (*(p + 1) - '0') * 10 + *(p + 2) - '0';
@@ -117,7 +152,6 @@ static int get_open(void)
 	char buf[32];
 	memset(buf, 0, sizeof(buf));
 	memcpy(buf, comma[0] + 1, comma[1] - comma[0] - 1);
-	//printf("%s\n", buf);
 	gopen = string_to_int(buf);
 	return gopen;
 }
@@ -158,27 +192,36 @@ static int get_low(void)
 	return glow;
 }
 
-static char *get_original_data(char *code, char *date)
+static long long get_volume(void)
 {
-	int fp, ret;
-	static char *data = 0;
-	char path[128];
-	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s/%s", date, code);
-	if (access(path, F_OK) < 0) {
-		printf("File does not exit: %s\n", path);
-		return 0;
-	}
-	fp = open(path, O_RDONLY);
-	if (fp < 0) {
-		printf("Can't open file: %s\n", path);
-		return 0;
-	}
-	if (!data)
-		data = (char *)malloc(ONE_BUFFER_LENGTH);
+	char buf[32];
+	memset(buf, 0, sizeof(buf));
+	memcpy(buf, comma[7] + 1, comma[8] - comma[7] - 1);
+	gvolume = string_to_int(buf);
+	return gvolume;
+}
+
+static long long get_turnover(void)
+{
+	char buf[32];
+	memset(buf, 0, sizeof(buf));
+	memcpy(buf, comma[8] + 1, comma[9] - comma[8] - 1);
+	gturnover = string_to_int(buf);
+	return gturnover;
+}
+
+static char *get_original_data(char *stocks_data, char *code)
+{
+	char *data, *p;
+	char key[16];
+	memset(key, 0, sizeof(16));
+	sprintf(key, "%s%s", code[0]=='6'? "sh":"sz", code);
+	p = strstr(stocks_data, key);
+	if (!p) return 0;
+	data = (char *)malloc(ONE_BUFFER_LENGTH);
 	memset(data, 0, ONE_BUFFER_LENGTH);
-	ret = read(fp, data, ONE_BUFFER_LENGTH);
-	if (ret <= 0) return 0;
+	memcpy(data, p, 300);
+
 	return data;
 }
 
@@ -192,63 +235,17 @@ static int parse_original_data(char *data)
 	get_toclose();
 	get_high();
 	get_low();
+	get_volume();
+	get_turnover();
 	return ret;
 }
 
-static void do_look_one(char *code, char *date)
+static void do_look_one(char *data, char *code)
 {
-	char *p = get_original_data(code, date);
+	char *p = get_original_data(data, code);
 	if (!p) return;
 	parse_original_data(p);
-}
-
-static int is_one_stab(char *code, char *date1, char *date2)
-{
-	int up1, obj1, down1, total1;
-	int up2, obj2, down2, total2;
-	int h1, h2, o1, o2, c1, c2, l1, l2;
-
-	do_look_one(code, date1);
-	if (gopen <= 0
-		|| gtoclose <= 0
-		|| ghigh <= 0
-		|| glow <= 0) return 0;
-	h1 = ghigh;
-	o1 = gopen;
-	c1 = gtoclose;
-	l1 = glow;
-	if (o1 <= c1) return 0;
-	total1 = h1 - l1;
-	up1 = h1 - o1;
-	if (up1 > total1 * 20 / 100) return 0;
-	obj1 = o1 - c1;
-	if (obj1 < c1 * 1.5 / 100) return 0;
-	down1 = c1 - l1;
-	//if (down1 > total1 * 20 / 100) return 0;
-
-	do_look_one(code, date2);
-	if (gopen <= 0
-		|| gtoclose <= 0
-		|| ghigh <= 0
-		|| glow <= 0) return 0;
-	h2 = ghigh;
-	o2 = gopen;
-	c2 = gtoclose;
-	l2 = glow;
-	if (c2 < o2) return 0;
-	total2 = h2 - l2;
-	up2 = h2 - c2;
-	if (up2 > total2 * 20 / 100) return 0;
-	obj2 = c2 - o2;
-	if (obj2 < o2 * 1 / 100) return 0;
-	down2 = o2 - l2;
-	if (down2 > total2 * 20 / 100) return 0;
-
-	if (o2 > c1 + (obj1 / 5)) return 0;
-	//if (c2 > o1) return 0;
-	if (c2 < (c1 + o1) / 2) return 0;
-
-	return 1;
+	free(p);
 }
 
 #define BUFFER_LENGTH	(7 * 5000)
@@ -316,7 +313,7 @@ static void do_get_list(void)
 	stocks = get_all_stocks_code(fdata, amount);
 }
 
-static void do_all_stab(char *date1, char *date2)
+static void do_all_stab(char *date1, char *date2, char *date3)
 {
 	int i, c = 0;
 	do_get_list();
@@ -325,7 +322,7 @@ static void do_all_stab(char *date1, char *date2)
 		return;
 	}
 	for (i = 0; i < amount; i ++) {
-		if (is_one_stab(stocks[i], date1, date2)) {
+		if (is_one_stab(stocks[i], date1, date2, date3)) {
 			printf("%s\n", stocks[i]);
 			c ++;
 		}
@@ -333,14 +330,107 @@ static void do_all_stab(char *date1, char *date2)
 	printf("Found: %d\n", c);
 }
 
+#define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
+static char *get_stocks_data(char *date)
+{
+	int fp, ret;
+	char *data;
+	char path[128];
+	memset(path, 0, sizeof(path));
+	sprintf(path, "data/%s.txt", date);
+	if (access(path, F_OK) < 0) {
+		printf("File does not exit: %s\n", path);
+		return 0;
+	}
+	fp = open(path, O_RDONLY);
+	if (fp < 0) {
+		printf("Can't open file: %s\n", path);
+		return 0;
+	}
+	data = (char *)malloc(STOCKS_DATA_BUFFER_LENGTH);
+	ret = read(fp, data, STOCKS_DATA_BUFFER_LENGTH);
+	close(fp);
+	if (ret <= 0) return 0;
+	return data;
+}
+
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
+	char *date1, *date2, *date3;
+	if (argc < 4) {
 		printf("Please input date1 and date2\n");
 		return 0;
 	}
-	do_all_stab(argv[1], argv[2]);
+	date1 = get_stocks_data(argv[1]);
+	if (!date1) goto EXIT1;
+	date2 = get_stocks_data(argv[2]);
+	if (!date2) goto EXIT2;
+	date3 = get_stocks_data(argv[3]);
+	if (!date3) goto EXIT3;
 
+	do_all_stab(date1, date2, date3);
+
+	free(date3);
+EXIT3:
+	free(date2);
+EXIT2:
+	free(date1);
+EXIT1:
 	printf("==== end ====\n");
 	return 0;
+}
+
+static int is_one_stab(char *code, char *date1, char *date2, char *date3)
+{
+	int up1, obj1, down1, total1;
+	int up2, obj2, down2, total2;
+	int h1, h2, o1, o2, c1, c2, l1, l2;
+
+	do_look_one(date1, code);
+	if (gopen <= 0
+		|| gtoclose <= 0
+		|| ghigh <= 0
+		|| glow <= 0) return 0;
+	h1 = ghigh;
+	o1 = gopen;
+	c1 = gtoclose;
+	l1 = glow;
+	if (o1 <= c1) return 0;
+	total1 = h1 - l1;
+	up1 = h1 - o1;
+	if (up1 > total1 * 40 / 100) return 0;
+	obj1 = o1 - c1;
+	if (obj1 < c1 * 1.5 / 100) return 0;
+	down1 = c1 - l1;
+
+	do_look_one(date2, code);
+	if (gopen <= 0
+		|| gtoclose <= 0
+		|| ghigh <= 0
+		|| glow <= 0) return 0;
+	h2 = ghigh;
+	o2 = gopen;
+	c2 = gtoclose;
+	l2 = glow;
+	if (c2 < o2) return 0;
+	total2 = h2 - l2;
+	up2 = h2 - c2;
+	if (up2 > total2 * 40 / 100) return 0;
+	obj2 = c2 - o2;
+	if (obj2 < o2 * 1 / 100) return 0;
+	down2 = o2 - l2;
+	if (down2 > total2 * 40 / 100) return 0;
+
+	if (o2 > c1 + (obj1 / 5)) return 0;
+	if (c2 > o1 + (obj1 / 5)) return 0;
+	//if (c2 < (c1 + o1) / 2) return 0;
+
+	do_look_one(date3, code);
+	if (gopen <= 0
+		|| gtoclose <= 0
+		|| ghigh <= 0
+		|| glow <= 0) return 0;
+	if (c1 > gopen) return 0;
+
+	return 1;
 }

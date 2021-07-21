@@ -1,3 +1,7 @@
+/*
+ * huang hongwen <hhwit@126.com> 2021-07-21
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -131,7 +135,6 @@ static long long string_to_int(char *s)
 		n = l;
 		m = 0;
 	}
-	//printf("n=%d m=%d\n", n, m);
 	for (i = 0, j = n, a = 0; i < n; i ++, j --) {
 		a += str_to_decimal(j, s[i]);
 	}
@@ -147,7 +150,6 @@ static int get_open(void)
 	char buf[32];
 	memset(buf, 0, sizeof(buf));
 	memcpy(buf, comma[0] + 1, comma[1] - comma[0] - 1);
-	//printf("%s\n", buf);
 	gopen = string_to_int(buf);
 	return gopen;
 }
@@ -206,7 +208,7 @@ static long long get_turnover(void)
 	return gturnover;
 }
 
-static char *get_original_data(char *stocks_data, char *code, char *date)
+static char *get_original_data(char *stocks_data, char *code)
 {
 	char *data, *p;
 	char key[16];
@@ -220,32 +222,6 @@ static char *get_original_data(char *stocks_data, char *code, char *date)
 
 	return data;
 }
-
-#if 0
-static char *get_original_data(char *code, char *date)
-{
-	int fp, ret;
-	char *data;
-	char path[128];
-	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s/%s", date, code);
-	if (access(path, F_OK) < 0) {
-		printf("File does not exit: %s\n", path);
-		return 0;
-	}
-	fp = open(path, O_RDONLY);
-	if (fp < 0) {
-		printf("Can't open file: %s\n", path);
-		return 0;
-	}
-	data = (char *)malloc(ONE_BUFFER_LENGTH);
-	memset(data, 0, ONE_BUFFER_LENGTH);
-	ret = read(fp, data, ONE_BUFFER_LENGTH);
-	close(fp);
-	if (ret <= 0) return 0;
-	return data;
-}
-#endif
 
 static int parse_original_data(char *data)
 {
@@ -297,9 +273,9 @@ static char *get_stocks_data(char *date)
 	return data;
 }
 
-static void do_look(char *data, char *code, char *date)
+static void do_look(char *data, char *code)
 {
-	char *p = get_original_data(data, code, date);
+	char *p = get_original_data(data, code);
 	if (!p) return;
 	parse_original_data(p);
 	free(p);
@@ -316,7 +292,7 @@ int main(int argc, char *argv[])
 	data = get_stocks_data(argv[1]);
 	if (!data) return 0;
 
-	do_look(data, argv[2], argv[1]);
+	do_look(data, argv[2]);
 	free(data);
 
 	printf("==== end ====\n");
