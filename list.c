@@ -28,6 +28,8 @@ static int cnum;
 static char *myfiles[MY_FILES_MAX];
 static int myfiles_num = 0;
 
+static int is_list_wanted(char *data, char *code);
+
 static int get_commas(char *data)
 {
 	int i;
@@ -240,21 +242,10 @@ static int parse_original_data(char *data)
 	get_low();
 	get_volume();
 	get_turnover();
-	printf("H:%d\n", ghigh);
-	if (gopen > gtoclose) {
-		printf("O:%d\n", gopen);
-		printf("C:%d\n", gtoclose);
-	} else {
-		printf("C:%d\n", gtoclose);
-		printf("O:%d\n", gopen);
-	}
-	printf("L:%d\n", glow);
-	printf("V:%lld\n", gvolume);
-	printf("T:%lld\n", gturnover);
 	return ret;
 }
 
-static void do_look(char *data, char *code)
+static void do_look_one(char *data, char *code)
 {
 	char *p = get_original_data(data, code);
 	if (!p) return;
@@ -262,14 +253,80 @@ static void do_look(char *data, char *code)
 	free(p);
 }
 
+#define BUFFER_LENGTH	(7 * 5000)
+static char **stocks;
+static int amount;
+
+static char *get_list_data(char *path)
+{
+	int fp, ret;
+	char *data;
+	if (access(path, F_OK) < 0) {
+		printf("List does not exit: %s\n", path);
+		return 0;
+	}
+	fp = open(path, O_RDONLY);
+	if (fp < 0) {
+		printf("Can't open list: %s\n", path);
+		return 0;
+	}
+	data = (char *)malloc(BUFFER_LENGTH);
+	memset(data, 0, BUFFER_LENGTH);
+	ret = read(fp, data, BUFFER_LENGTH);
+	close(fp);
+	if (ret <= 0) return 0;
+	return data;
+}
+
+static int handle_list_data(char *data)
+{
+	int i, j, c = 0;
+	char *tmp;
+	tmp = (char *)malloc(BUFFER_LENGTH);
+	memcpy(tmp, data, BUFFER_LENGTH);
+	memset(data, 0, BUFFER_LENGTH);
+	for (i = 0, j = 0; i < BUFFER_LENGTH; i ++) {
+		if (tmp[i] >= '0' && tmp[i] <= '9') {
+			data[j] = tmp[i];
+			j ++;
+		} else {
+			if (data[j - 1] != 0) {
+				j ++;
+				c ++;
+			}
+		}
+	}
+	free(tmp);
+	return c;
+}
+
+static char **get_all_stocks_code(char *d, int n)
+{
+	int i;
+	char **s;
+	s = (char **)malloc(n * sizeof(char *));
+	for (i = 0; i < n; i ++) {
+		s[i] = i * 7 + d;
+	}
+	return s;
+}
+
+static void do_get_list(void)
+{
+	char *fdata;
+	fdata = get_list_data("list.all");
+	amount = handle_list_data(fdata);
+	stocks = get_all_stocks_code(fdata, amount);
+}
+
 #define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
-static char *get_stocks_data(char *date)
+static char *get_stocks_data(char *dir, char *name)
 {
 	int fp, ret;
 	char *data;
 	char path[128];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s", date);
+	sprintf(path, "%s/%s", dir, name);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
 		return 0;
@@ -298,22 +355,64 @@ static void get_files(char *path)
 	while((ptr = readdir(dir)) != NULL) {
 		if (myfiles_num > MY_FILES_MAX) break;
 		if (ptr->d_type != DT_REG) continue;
-		printf("d_name : %s\n", ptr->d_name);
-		myfiles[myfiles_num] = get_stocks_data(ptr->d_name);
+		myfiles[myfiles_num] = get_stocks_data(path, ptr->d_name);
 		if (myfiles[myfiles_num]) myfiles_num ++;
 	}
 	closedir(dir);
 }
 
+static void do_gen_list(char *list)
+{
+	int sum = 0, n = 0;
+	int i, j, ret;
+	for (i = 0; i < amount; i ++) {
+		for (j = 0, n = 0; j < myfiles_num; j ++) {
+			ret = is_list_wanted(myfiles[j], stocks[i]);
+			if (!ret) continue;
+			n ++;
+			if (n >= 2) {
+				printf("%s\n", stocks[i]);
+				sum ++;
+				break;
+			}
+		}
+	}
+	printf("Found: %d\n", sum);
+}
+
 int main(int argc, char *argv[])
 {
 	int i;
-	get_files("data");
-	printf("files number: %d\n", myfiles_num);
+	if (argc < 3) {
+		printf("Please input src and des\n");
+		return 0;
+	}
+	get_files(argv[1]);
+	//printf("files number: %d\n", myfiles_num);
+	if (myfiles_num <= 0) return 0;
+	do_get_list();
+	if (amount <= 0) {
+		printf("No stock found\n");
+		return 0;
+	}
+	do_gen_list(argv[2]);
 
 	for (i = 0; i < myfiles_num; i ++) {
 		free(myfiles[i]);
 	}
 	printf("==== end ====\n");
+	if (stocks[0]) free(stocks[0]);
+	if (stocks) free(stocks);
 	return 0;
+}
+
+static int is_list_wanted(char *data, char *code)
+{
+	do_look_one(data, code);
+	if (gopen <= 0
+		|| gtoclose <= 0
+		|| ghigh <= 0
+		|| glow <= 0) return 0;
+	if (gtoclose < gyesclose * 1095 / 1000) return 0;
+	return 1;
 }
