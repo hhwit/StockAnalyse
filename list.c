@@ -361,7 +361,7 @@ static void get_files(char *path)
 	closedir(dir);
 }
 
-static void do_gen_list(char *list)
+static void do_gen_list(void)
 {
 	int sum = 0, n = 0;
 	int i, j, ret;
@@ -377,14 +377,14 @@ static void do_gen_list(char *list)
 			}
 		}
 	}
-	printf("Found: %d\n", sum);
+	//printf("Found: %d\n", sum);
 }
 
 int main(int argc, char *argv[])
 {
 	int i;
-	if (argc < 3) {
-		printf("Please input src and des\n");
+	if (argc < 2) {
+		printf("Please input src directory\n");
 		return 0;
 	}
 	get_files(argv[1]);
@@ -395,12 +395,12 @@ int main(int argc, char *argv[])
 		printf("No stock found\n");
 		return 0;
 	}
-	do_gen_list(argv[2]);
+	do_gen_list();
 
 	for (i = 0; i < myfiles_num; i ++) {
 		free(myfiles[i]);
 	}
-	printf("==== end ====\n");
+	//printf("==== end ====\n");
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
 	return 0;
