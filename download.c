@@ -7,7 +7,7 @@
 #include <fcntl.h>
 
 #define BUFFER_LENGTH	(7 * 5000)
-static char **stocks;
+static char **stocks = 0;
 static int amount;
 
 static char *get_list_data(char *path)
@@ -84,11 +84,11 @@ static int date_check(char *date)
 {
 	char cmd[32];
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "data/%s", date);
+	sprintf(cmd, "%s", date);
 	if (access(cmd, F_OK) < 0) {
 		printf("Directory does not exist: %s\n", date);
 		memset(cmd, 0, sizeof(cmd));
-		sprintf(cmd, "mkdir -p data/%s", date);
+		sprintf(cmd, "mkdir -p %s", date);
 		system(cmd);
 	}
 	return 0;
@@ -103,7 +103,7 @@ static int download_stock(char *code, char *date)
 		return -1;
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, 
-		"wget -O data/%s/%s http://hq.sinajs.cn/list=%s%s",
+		"wget -O %s/%s http://hq.sinajs.cn/list=%s%s",
 		date,
 		code,
 		code[0]=='6'? "sh" : "sz",
@@ -112,10 +112,10 @@ static int download_stock(char *code, char *date)
 	return 0;
 }
 
-static void do_get_list(void)
+static void do_get_list(char *list)
 {
 	char *fdata;
-	fdata = get_list_data("list");
+	fdata = get_list_data(list);
 	amount = handle_list_data(fdata);
 	stocks = get_all_stocks_code(fdata, amount);
 	printf("amount=%d\n", amount);
@@ -136,9 +136,11 @@ int main(int argc, char *argv[])
 		printf("Please input date\n");
 		return 0;
 	}
-	do_get_list();
+	do_get_list("list.all");
 	do_download(argv[1]);
 
+	if (stocks[0]) free(stocks[0]);
+	if (stocks) free(stocks);
 	printf("==== end ====\n");
 	return 0;
 }

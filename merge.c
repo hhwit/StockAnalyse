@@ -11,13 +11,13 @@
 static char *stock_data = 0;
 static int stock_data_length = 0;
 
-static char *get_original_data(char *code, char *date)
+static char *get_original_data(char *code, char *dir)
 {
 	int fp, ret;
 	char path[128];
 	char *data = stock_data;
 	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s/%s", date, code);
+	sprintf(path, "%s/%s", dir, code);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
 		return 0;
@@ -39,9 +39,9 @@ static char *get_original_data(char *code, char *date)
 	return data;
 }
 
-static int do_merge_one(int fp, char *code, char *date)
+static int do_merge_one(int fp, char *code, char *dir)
 {
-	char *p = get_original_data(code, date);
+	char *p = get_original_data(code, dir);
 	if (!p) return -1;
 	return write(fp, p, stock_data_length);
 }
@@ -107,7 +107,7 @@ static char **get_all_stocks_code(char *d, int n)
 static void do_get_list(void)
 {
 	char *fdata;
-	fdata = get_list_data("list");
+	fdata = get_list_data("list.all");
 	amount = handle_list_data(fdata);
 	stocks = get_all_stocks_code(fdata, amount);
 }
@@ -117,14 +117,14 @@ static int create_merge_file(char *date)
 	int fp;
 	char path[32];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s.txt", date);
-	fp = open(path, O_RDWR | O_CREAT);
+	sprintf(path, "%s", date);
+	fp = open(path, O_RDWR | O_CREAT, 0755);
 	if (fp <= 0)
 		printf("Can't open %s\n", path);
 	return fp;
 }
 
-static void do_merge(char *date)
+static void do_merge(char *src, char *des)
 {
 	int fp;
 	int i, c = 0;
@@ -133,10 +133,10 @@ static void do_merge(char *date)
 		printf("No stock found\n");
 		return;
 	}
-	fp = create_merge_file(date);
+	fp = create_merge_file(des);
 	if (fp <= 0) return;
 	for (i = 0; i < amount; i ++) {
-		if (do_merge_one(fp, stocks[i], date) > 0) {
+		if (do_merge_one(fp, stocks[i], src) > 0) {
 			c ++;
 		}
 	}
@@ -146,12 +146,14 @@ static void do_merge(char *date)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-		printf("Please input date\n");
+	if (argc < 3) {
+		printf("Please input src and des\n");
 		return 0;
 	}
-	do_merge(argv[1]);
+	do_merge(argv[1], argv[2]);
 
+	if (stocks[0]) free(stocks[0]);
+	if (stocks) free(stocks);
 	printf("==== end ====\n");
 	return 0;
 }
