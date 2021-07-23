@@ -308,7 +308,7 @@ static char **get_all_stocks_code(char *d, int n)
 static void do_get_list(void)
 {
 	char *fdata;
-	fdata = get_list_data("list");
+	fdata = get_list_data("list.g95");
 	amount = handle_list_data(fdata);
 	stocks = get_all_stocks_code(fdata, amount);
 }
@@ -337,7 +337,7 @@ static char *get_stocks_data(char *date)
 	char *data;
 	char path[128];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s.txt", date);
+	sprintf(path, "data/%s", date);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
 		return 0;
@@ -357,7 +357,7 @@ static char *get_stocks_data(char *date)
 int main(int argc, char *argv[])
 {
 	char *date1, *date2, *date3;
-	if (argc < 4) {
+	if (argc < 3) {
 		printf("Please input date1 and date2\n");
 		return 0;
 	}
@@ -365,13 +365,13 @@ int main(int argc, char *argv[])
 	if (!date1) goto EXIT1;
 	date2 = get_stocks_data(argv[2]);
 	if (!date2) goto EXIT2;
-	date3 = get_stocks_data(argv[3]);
-	if (!date3) goto EXIT3;
+	//date3 = get_stocks_data(argv[3]);
+	//if (!date3) goto EXIT3;
 
 	do_all_stab(date1, date2, date3);
 
-	free(date3);
-EXIT3:
+	//free(date3);
+//EXIT3:
 	free(date2);
 EXIT2:
 	free(date1);
@@ -424,13 +424,13 @@ static int is_one_stab(char *code, char *date1, char *date2, char *date3)
 	if (o2 > c1 + (obj1 / 5)) return 0;
 	if (c2 > o1 + (obj1 / 5)) return 0;
 	//if (c2 < (c1 + o1) / 2) return 0;
-
+#if 0
 	do_look_one(date3, code);
 	if (gopen <= 0
 		|| gtoclose <= 0
 		|| ghigh <= 0
 		|| glow <= 0) return 0;
 	if (c1 > gopen) return 0;
-
+#endif
 	return 1;
 }
