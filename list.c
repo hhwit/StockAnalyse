@@ -370,7 +370,7 @@ static void do_gen_list(void)
 			ret = is_list_wanted(myfiles[j], stocks[i]);
 			if (!ret) continue;
 			n ++;
-			if (n >= 2) {
+			if (n >= 1) {
 				printf("%s\n", stocks[i]);
 				sum ++;
 				break;
@@ -413,6 +413,6 @@ static int is_list_wanted(char *data, char *code)
 		|| gtoclose <= 0
 		|| ghigh <= 0
 		|| glow <= 0) return 0;
-	if (gtoclose < gyesclose * 1095 / 1000) return 0;
+	if (gtoclose < gyesclose * 1090 / 1000) return 0;
 	return 1;
 }
