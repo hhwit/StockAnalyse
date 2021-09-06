@@ -401,7 +401,7 @@ static int is_one_stab(char *code, char *date1, char *date2, char *date3)
 	vo1 = gvolume;
 	if (c1 < yc1 * 104 / 100) return 0;
 	//if (c1 > yc1 * 108 / 100) return 0;
-	if (c1 > yc1 * 1.049 && c1 < yc1 * 1.051) return 0;
+	//if (c1 > yc1 * 1.049 && c1 < yc1 * 1.051) return 0;
 
 	do_look_one(date2, code);
 	if (gopen <= 0
