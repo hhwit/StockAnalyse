@@ -439,6 +439,7 @@ static int is_list_wanted(char *code)
 		|| glow <= 0) return 0;
 	o1 = gopen;
 	c1 = gtoclose;
+	if (c1 < o1) return 0;
 
 	avg5 = get_avg5(code);
 	if (avg5 < 0) return 0;
