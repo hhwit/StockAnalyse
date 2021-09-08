@@ -396,7 +396,7 @@ static void do_gen_list(void)
 	for (i = 0; i < amount; i ++) {
 		ret = is_list_wanted(stocks[i]);
 		if (!ret) continue;
-		printf("%s\n", stocks[i]);
+		//printf("%s\n", stocks[i]);
 		sum ++;
 	}
 	printf("Found: %d\n", sum);
@@ -430,7 +430,7 @@ int main(int argc, char *argv[])
 
 static int is_list_wanted(char *code)
 {
-	int o1, c1;
+	int o1, c1, yc1;
 	int avg5, avg10, avg20;
 	do_look_one(myfiles[myfiles_num - 1], code);
 	if (gopen <= 0
@@ -439,6 +439,7 @@ static int is_list_wanted(char *code)
 		|| glow <= 0) return 0;
 	o1 = gopen;
 	c1 = gtoclose;
+	yc1 = gyesclose;
 	if (c1 < o1) return 0;
 
 	avg5 = get_avg5(code);
@@ -455,6 +456,8 @@ static int is_list_wanted(char *code)
 	if (avg20 < 0) return 0;
 	if (c1 < avg20) return 0;
 	if (o1 > avg20) return 0;
+
+	printf("%s  %03d\n", code, (c1-yc1) * 1000 / yc1);
 
 	return 1;
 }
