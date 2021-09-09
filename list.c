@@ -28,6 +28,7 @@ static int cnum;
 static char *myfiles[MY_FILES_MAX];
 static int myfiles_num = 0;
 
+static void do_gen_list(void);
 static int is_list_wanted(char *data, char *code);
 
 static int get_commas(char *data)
@@ -361,25 +362,6 @@ static void get_files(char *path)
 	closedir(dir);
 }
 
-static void do_gen_list(void)
-{
-	int sum = 0, n = 0;
-	int i, j, ret;
-	for (i = 0; i < amount; i ++) {
-		for (j = 0, n = 0; j < myfiles_num; j ++) {
-			ret = is_list_wanted(myfiles[j], stocks[i]);
-			if (!ret) continue;
-			n ++;
-			if (n >= 2) {
-				printf("%s\n", stocks[i]);
-				sum ++;
-				break;
-			}
-		}
-	}
-	//printf("Found: %d\n", sum);
-}
-
 int main(int argc, char *argv[])
 {
 	int i;
@@ -404,6 +386,25 @@ int main(int argc, char *argv[])
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
 	return 0;
+}
+
+static void do_gen_list(void)
+{
+	int sum = 0, n = 0;
+	int i, j, ret;
+	for (i = 0; i < amount; i ++) {
+		for (j = 0, n = 0; j < myfiles_num; j ++) {
+			ret = is_list_wanted(myfiles[j], stocks[i]);
+			if (!ret) continue;
+			n ++;
+			if (n >= 1) {
+				printf("%s\n", stocks[i]);
+				sum ++;
+				break;
+			}
+		}
+	}
+	//printf("Found: %d\n", sum);
 }
 
 static int is_list_wanted(char *data, char *code)
