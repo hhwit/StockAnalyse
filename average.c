@@ -314,7 +314,7 @@ static char **get_all_stocks_code(char *d, int n)
 static void do_get_list(void)
 {
 	char *fdata;
-	fdata = get_list_data("list.all");
+	fdata = get_list_data("list.g60");
 	amount = handle_list_data(fdata);
 	stocks = get_all_stocks_code(fdata, amount);
 }
