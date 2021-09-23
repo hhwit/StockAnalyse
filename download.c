@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 
 #define BUFFER_LENGTH	(7 * 5000)
 static char **stocks = 0;
@@ -80,34 +81,45 @@ static int code_check(char *code)
 	return 0;
 }
 
-static int date_check(char *date)
+static int path_check(char *path)
 {
-	char cmd[32];
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "%s", date);
-	if (access(cmd, F_OK) < 0) {
-		printf("Directory does not exist: %s\n", date);
+	int i, n;
+	char cmd[256], buf[200];
+	memset(buf, 0, sizeof(buf));
+	sprintf(buf, "%s", path);
+	for (i = strlen(buf) - 1; i >= 0; i --) {
+		if (buf[i] == '/') {
+			buf[i] = 0;
+			break;
+		}
+	}
+	if (i <= 0) return 0;
+	if (access(buf, F_OK) < 0) {
+		printf("Directory does not exist: %s\n", buf);
 		memset(cmd, 0, sizeof(cmd));
-		sprintf(cmd, "mkdir -p %s", date);
+		sprintf(cmd, "mkdir -p %s", buf);
 		system(cmd);
 	}
 	return 0;
 }
 
-static int download_stock(char *code, char *date)
+static int download_stock(char **code, int num, char *path)
 {
-	char cmd[128];
-	if (code_check(code) < 0)
-		return -1;
-	if (date_check(date) < 0)
-		return -1;
+	int i;
+	char cmd[1024], buf[16];
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, 
-		"wget -O %s/%s http://hq.sinajs.cn/list=%s%s",
-		date,
-		code,
-		code[0]=='6'? "sh" : "sz",
-		code);
+	sprintf(cmd, "wget  -O %s http://hq.sinajs.cn/list=", path);
+	//printf("cmd: %s\n", cmd);
+	for (i = 0; i < num; i ++) {
+		if (code_check(code[i]) < 0) continue;
+		memset(buf, 0, sizeof(buf));
+		sprintf(buf, "%s%s%s", code[i][0] == '6' ? "sh" : "sz",
+					code[i],
+					i == num - 1 ? "" : ",");
+		//printf("buf: %s\n", buf);
+		strcat(cmd, buf);
+	}
+	//printf("cmd:%s\n", cmd);
 	system(cmd);
 	return 0;
 }
@@ -121,22 +133,52 @@ static void do_get_list(char *list)
 	printf("amount=%d\n", amount);
 }
 
-static void do_download(char *date)
+static void do_download(char *path)
 {
-	int i;
-	for (i = 0; i < amount; i ++) {
-		//printf("i=%d\n", i);
-		download_stock(stocks[i], date);
+	int i, n, m;
+	time_t timep;
+	struct tm *t;
+	char systime[32] = {0};
+	char saved_path[256];
+	char cmd[256];
+	time(&timep);
+	t = localtime(&timep);
+	sprintf(systime, "20%02d.%02d.%02d-%02d.%02d.%02d",
+			t->tm_year - 100,
+			t->tm_mon + 1,
+			t->tm_mday,
+			t->tm_hour,
+			t->tm_min,
+			t->tm_sec);
+	#define TMP_PATH    "tmp/"
+	path_check(TMP_PATH);
+	n = amount / 100;
+	m = amount % 100;
+	for (i = 0; i < n; i ++) {
+		memset(saved_path, 0, sizeof(saved_path));
+		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
+		printf("saved_path: %s\n", saved_path);
+		download_stock(&stocks[(n-1)*100], 100, saved_path);
 	}
+	if (m != 0) {
+		memset(saved_path, 0, sizeof(saved_path));
+		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
+		printf("saved_path: %s\n", saved_path);
+		download_stock(&stocks[(n-1)*100], m, saved_path);
+	}
+	memset(cmd, 0, sizeof(cmd));
+	sprintf(cmd, "cat %s/%s* > %s", TMP_PATH, systime, path);
+	system(cmd);
 }
 
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
-		printf("Please input date\n");
+		printf("Please input path for save\n");
 		return 0;
 	}
 	do_get_list("list.all");
+	path_check(argv[1]);
 	do_download(argv[1]);
 
 	if (stocks[0]) free(stocks[0]);
