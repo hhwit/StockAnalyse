@@ -150,21 +150,22 @@ static void do_download(char *path)
 			t->tm_hour,
 			t->tm_min,
 			t->tm_sec);
-	#define TMP_PATH    "tmp/"
+	#define TMP_PATH       "tmp/"
+	#define DOWNLOAD_MAX    100
 	path_check(TMP_PATH);
-	n = amount / 100;
-	m = amount % 100;
+	n = amount / DOWNLOAD_MAX;
+	m = amount % DOWNLOAD_MAX;
 	for (i = 0; i < n; i ++) {
 		memset(saved_path, 0, sizeof(saved_path));
 		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
 		printf("saved_path: %s\n", saved_path);
-		download_stock(&stocks[(n-1)*100], 100, saved_path);
+		download_stock(&stocks[i*DOWNLOAD_MAX], DOWNLOAD_MAX, saved_path);
 	}
 	if (m != 0) {
 		memset(saved_path, 0, sizeof(saved_path));
 		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
 		printf("saved_path: %s\n", saved_path);
-		download_stock(&stocks[(n-1)*100], m, saved_path);
+		download_stock(&stocks[i*DOWNLOAD_MAX], m, saved_path);
 	}
 	memset(cmd, 0, sizeof(cmd));
 	sprintf(cmd, "cat %s/%s* > %s", TMP_PATH, systime, path);
