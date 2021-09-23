@@ -108,7 +108,7 @@ static int download_stock(char **code, int num, char *path)
 	int i;
 	char cmd[1024], buf[16];
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "wget  -O %s http://hq.sinajs.cn/list=", path);
+	sprintf(cmd, "wget  -q -O %s http://hq.sinajs.cn/list=", path);
 	//printf("cmd: %s\n", cmd);
 	for (i = 0; i < num; i ++) {
 		if (code_check(code[i]) < 0) continue;
