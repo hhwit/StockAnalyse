@@ -38,6 +38,7 @@ static int ghigh = 0;
 static int glow = 0;
 static long long gvolume = 0;
 static long long gturnover = 0;
+static int gtime = 0;
 
 static char *comma[64];
 static int cnum;
@@ -227,6 +228,21 @@ static long long get_turnover(void)
 	return gturnover;
 }
 
+static int get_time(void)
+{
+	int h, m, s;
+	char buf[32];
+	memset(buf, 0, sizeof(buf));
+	memcpy(buf, comma[30] + 1, comma[31] - comma[30] - 1);
+	buf[2] = 0;
+	buf[5] = 0;
+	h = string_to_int(&buf[0]);
+	m = string_to_int(&buf[3]) / 100;
+	s = string_to_int(&buf[6]) / 100;
+	gtime = h * 36 + m  * 60 + s;
+	return gtime;
+}
+
 static char *get_original_data(char *stocks_data, char *code)
 {
 	char *data, *p;
@@ -254,6 +270,7 @@ static int parse_original_data(char *data)
 	get_low();
 	get_volume();
 	get_turnover();
+	get_time();
 	return ret;
 }
 
