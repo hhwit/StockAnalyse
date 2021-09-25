@@ -18,8 +18,8 @@ static int amount;
 #define HISTORY_MAX	150
 struct history_s {
 	int price;
-	int volume;
 	int time;
+	long long volume;
 };
 
 struct stock_s {
@@ -457,6 +457,26 @@ static int get_sys_time(void)
 
 static struct stock_s *stocks_sp;
 static int g_time_calibrate = 0;
+static int g_loop_time = 0;
+
+static void is_trading_hour(void)
+{
+	int sys_t;
+	while (1){
+		sys_t = get_sys_time() + g_time_calibrate;
+		if ((sys_t >= (9 * 3600) + (30 * 60) &&
+			sys_t <= (11 * 3600) + (30 * 60)) ||
+			(sys_t >= 13 * 3600  &&
+			sys_t <= 15 * 3600)) break;
+		if (sys_t % 10 == 0)
+			printf("It's NOT trading hour: %02d:%02d:%02d\n", 
+				sys_t / 3600, 
+				(sys_t % 3600) / 60, 
+				(sys_t % 3600) % 60);
+		usleep(1 * 1000 * 1000);
+	}
+	g_loop_time = sys_t;
+}
 
 static int time_calibrate(void)
 {
@@ -474,33 +494,19 @@ static int time_calibrate(void)
 		g_time_calibrate =  (int)sum_t - sys_t;
 		return 1;
 	}
-	printf("It's NOT trading hour: %02d:%02d:%02d (last trade: %02d:%02d:%02d)\n", 
-		sys_t / 3600, (sys_t % 3600) / 60, (sys_t % 3600) % 60,
-		(int)sum_t / 3600, ((int)sum_t % 3600) / 60, ((int)sum_t % 3600) % 60);
-	usleep(10 * 1000 * 1000);
+	printf("Last trading hour: %02d:%02d:%02d (current time: %02d:%02d:%02d)\n", 
+		(int)sum_t / 3600, ((int)sum_t % 3600) / 60, ((int)sum_t % 3600) % 60,
+		sys_t / 3600, (sys_t % 3600) / 60, (sys_t % 3600) % 60);
 	return 0;
 }
 
 static void do_data_init(void)
 {
-	int i, sys_t;
-	do {
-		sys_t = get_sys_time();
-		if ((sys_t >= (9 * 3600) + (30 * 60) &&
-			sys_t <= (11 * 3600) + (30 * 60)) ||
-			(sys_t >= 13 * 3600  &&
-			sys_t <= 15 * 3600)) break;
-		if (sys_t % 10 == 0)
-			printf("It's NOT trading hour: %02d:%02d:%02d\n", 
-				sys_t / 3600, 
-				(sys_t % 3600) / 60, 
-				(sys_t % 3600) % 60);
-		usleep(1 * 1000 * 1000);
-	} while (1);
+	int i;
 	stocks_sp = (struct stock_s *)malloc(sizeof(struct stock_s) * amount);
 	if (!stocks_sp) return;
 	memset(stocks_sp, 0, sizeof(struct stock_s) * amount);
-	do {
+	while (1) {
 		do_download_data();
 		for (i = 0; i < amount; i ++) {
 			do_look_one(stock_all_data_p, stocks[i]);
@@ -508,10 +514,27 @@ static void do_data_init(void)
 			stocks_sp[i].yesclose = gyesclose;
 			stocks_sp[i].begin = gtime;
 		}
-	} while (!time_calibrate());
+		if (time_calibrate()) break;
+		usleep(10 * 1000 * 1000);
+	}
 }
 
 static void do_process(void);
+
+static void update_stocks_data(void)
+{
+	int i, next;
+	do_download_data();
+	for (i = 0; i < amount; i ++) {
+		do_look_one(stock_all_data_p, stocks[i]);
+		next = stocks_sp[i].next;
+		stocks_sp[i].his[next].price = gtoclose;
+		stocks_sp[i].his[next].volume = gvolume;
+		stocks_sp[i].his[next].time = gtime;
+		next ++;
+		stocks_sp[i].next = next >= HISTORY_MAX ? 0 : next;
+	}
+}
 
 int main(int argc, char *argv[])
 {
@@ -520,8 +543,16 @@ int main(int argc, char *argv[])
 		printf("Please input stock list to list.txt\n");
 		return 0;
 	}
+	//is_trading_hour();
 	do_data_init();
-	//while (1) do_process();
+	printf("==== Decteting Start ====\n");
+	while (1) {
+		is_trading_hour();
+		if (g_loop_time % 10 == 0)
+			update_stocks_data();
+		do_process();
+		usleep(1 * 1000 * 1000);
+	}
 
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
@@ -531,5 +562,5 @@ int main(int argc, char *argv[])
 
 void do_process(void)
 {
-	int i;
+	return;
 }
