@@ -15,20 +15,18 @@
 static char **stocks = 0;
 static int amount;
 
-#define VOLUME_MAX	150
-struct volume_s {
-	int index;
-	int time_c[VOLUME_MAX];
-	int time_s[VOLUME_MAX];
-	int volume[VOLUME_MAX];
-	int tipped;
+#define HISTORY_MAX	150
+struct history_s {
+	int time;
+	int price;
+	int volume;
 };
 
 struct stock_s {
 	int open;
 	int yesclose;
-	int current;
-	struct volume_s vol;
+	int next;
+	struct history_s his[HISTORY_MAX];
 };
 
 #define ONE_BUFFER_LENGTH	(1024)
@@ -358,12 +356,18 @@ static int path_check(char *path)
 	return 0;
 }
 
-static int download_stock(char **code, int num, char *path)
+static char *stock_all_data_p = 0;
+#define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
+
+static int download_stock(char *save, char **code, int num)
 {
-	int i;
+	FILE *fp;
+	int i, n, len = 0;
 	char cmd[1024], buf[16];
+	char *ret;
+	char *p = save;
 	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "wget  -q -O %s http://hq.sinajs.cn/list=", path);
+	sprintf(cmd, "%s", "wget  -q -O - http://hq.sinajs.cn/list=");
 	for (i = 0; i < num; i ++) {
 		if (code_check(code[i]) < 0) continue;
 		memset(buf, 0, sizeof(buf));
@@ -372,8 +376,20 @@ static int download_stock(char **code, int num, char *path)
 					i == num - 1 ? "" : ",");
 		strcat(cmd, buf);
 	}
-	system(cmd);
-	return 0;
+	fp = popen(cmd, "r");
+	if (fp <= 0) {
+		perror("popen failed");
+		return 0;
+	}
+	while (1) {
+		ret = fgets(p, 255, fp);
+		if (ret == 0) break;
+		n = strlen(ret);
+		len += n;
+		p += n;
+	}
+	pclose(fp);
+	return len;
 }
 
 static void do_get_list(char *list)
@@ -385,78 +401,27 @@ static void do_get_list(char *list)
 	printf("amount=%d\n", amount);
 }
 
-#define TMP_PATH       "tmp/"
 #define DOWNLOAD_MAX    100
-
-static char stock_tmp_path[64];
-
 static void do_download_data(void)
 {
+	char *p;
+	int ret;
 	int i, n, m;
-	time_t timep;
-	struct tm *t;
-	char systime[32] = {0};
-	char saved_path[256];
-	char cmd[256];
-
-	path_check(TMP_PATH);
+	if (stock_all_data_p == 0)
+		stock_all_data_p = (char *)malloc(STOCKS_DATA_BUFFER_LENGTH);
+	p = stock_all_data_p;
 	n = amount / DOWNLOAD_MAX;
 	m = amount % DOWNLOAD_MAX;
-
-	time(&timep);
-	t = localtime(&timep);
-	sprintf(systime, "20%02d.%02d.%02d-%02d.%02d.%02d",
-			t->tm_year - 100,
-			t->tm_mon + 1,
-			t->tm_mday,
-			t->tm_hour,
-			t->tm_min,
-			t->tm_sec);
-
 	for (i = 0; i < n; i ++) {
-		memset(saved_path, 0, sizeof(saved_path));
-		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
-		//printf("saved_path: %s\n", saved_path);
-		download_stock(&stocks[i*DOWNLOAD_MAX], DOWNLOAD_MAX, saved_path);
+		ret = download_stock(p, &stocks[i*DOWNLOAD_MAX], DOWNLOAD_MAX);
+		p += ret;
 	}
 	if (m != 0) {
-		memset(saved_path, 0, sizeof(saved_path));
-		sprintf(saved_path, "%s/%s-%02d", TMP_PATH, systime, i);
-		//printf("saved_path: %s\n", saved_path);
-		download_stock(&stocks[i*DOWNLOAD_MAX], m, saved_path);
+		download_stock(p, &stocks[i*DOWNLOAD_MAX], m);
 	}
-	memset(stock_tmp_path, 0, sizeof(stock_tmp_path));
-	sprintf(stock_tmp_path, "%s%s-all", TMP_PATH, systime);
-
-	memset(cmd, 0, sizeof(cmd));
-	sprintf(cmd, "cat %s/%s* > %s", TMP_PATH, systime, stock_tmp_path);
-	system(cmd);
-}
-
-static char *stock_file_data_p = 0;
-
-#define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
-static void get_stocks_file_data(char *path)
-{
-	int fp, ret;
-	if (access(path, F_OK) < 0) {
-		printf("File does not exit: %s\n", path);
-		return;
-	}
-	fp = open(path, O_RDONLY);
-	if (fp < 0) {
-		printf("Can't open file: %s\n", path);
-		return;
-	}
-	if (!stock_file_data_p)
-		stock_file_data_p = (char *)malloc(STOCKS_DATA_BUFFER_LENGTH);
-	ret = read(fp, stock_file_data_p, STOCKS_DATA_BUFFER_LENGTH);
-	close(fp);
-	if (ret <= 0) return;
 }
 
 static struct stock_s *stocks_sp;
-
 static void do_data_init(void)
 {
 	int i;
@@ -464,12 +429,12 @@ static void do_data_init(void)
 	if (!stocks_sp) return;
 	memset(stocks_sp, 0, sizeof(struct stock_s) * amount);
 	do_download_data();
-	get_stocks_file_data(stock_tmp_path);
+	//printf("%s\n", stock_all_data_p);
 	for (i = 0; i < amount; i ++) {
-		do_look_one(stock_file_data_p, stocks[i]);
+		do_look_one(stock_all_data_p, stocks[i]);
 		stocks_sp[i].open = gopen;
 		stocks_sp[i].yesclose = gyesclose;
-		printf("%s: %d\n", stocks[i], stocks_sp[i].open);
+		//printf("%s: %d\n", stocks[i], stocks_sp[i].open);
 	}
 }
 
@@ -479,7 +444,7 @@ int main(int argc, char *argv[])
 {
 	do_get_list("list.txt");
 	do_data_init();
-	while (1) do_process();
+	//while (1) do_process();
 
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
