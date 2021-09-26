@@ -16,7 +16,7 @@
 static char **stocks = 0;
 static int amount;
 
-#define HISTORY_MAX	150
+#define HISTORY_MAX	5
 struct history_s {
 	int price;
 	int time;
@@ -29,6 +29,8 @@ struct stock_s {
 	int begin;
 	int next;
 	struct history_s his[HISTORY_MAX];
+	int tipped;
+	int invalid;
 };
 
 #define ONE_BUFFER_LENGTH	(1024)
@@ -421,19 +423,18 @@ static void do_get_list(char *list)
 	if (fdata == 0) return;
 	list_buf = handle_list_data(fdata, len, &amount);
 	stocks = get_all_stocks_code(list_buf, amount);
-	printf("Stocks count: %d\n", amount);
-	for (i = 0; i < amount; i ++) {
-		printf("%s\t", stocks[i]);
-	}
-	printf("\n");
+	//printf("Stocks count: %d\n", amount);
+	//for (i = 0; i < amount; i ++) {
+	//	printf("%s\t", stocks[i]);
+	//}
+	//printf("\n");
 }
 
 #define DOWNLOAD_MAX    100
 static void do_download_data(void)
 {
 	char *p;
-	int ret;
-	int i, n, m;
+	int ret, i, n, m;
 	if (stock_all_data_p == 0)
 		stock_all_data_p = (char *)malloc(STOCKS_DATA_BUFFER_LENGTH);
 	memset(stock_all_data_p, 0, sizeof(STOCKS_DATA_BUFFER_LENGTH));
@@ -465,7 +466,7 @@ static int g_loop_time = 0;
 static void is_trading_hour(void)
 {
 	int sys_t;
-	while (1){
+	while (1) {
 		sys_t = get_sys_time() + g_time_calibrate;
 		if ((sys_t >= (9 * 3600) + (30 * 60) &&
 			sys_t <= (11 * 3600) + (30 * 60)) ||
@@ -516,6 +517,7 @@ static void do_data_init(void)
 			stocks_sp[i].open = gopen;
 			stocks_sp[i].yesclose = gyesclose;
 			stocks_sp[i].begin = gtime;
+			printf("%d. %s\t%d.%d\n", i + 1, stocks[i], gtoclose / 100, gtoclose % 100);
 		}
 		if (time_calibrate()) break;
 		usleep(10 * 1000 * 1000);
@@ -539,6 +541,8 @@ static void update_stocks_data(void)
 	}
 }
 
+#define VOLUME_PERIOD	30
+
 int main(int argc, char *argv[])
 {
 	do_get_list("list.txt");
@@ -551,8 +555,25 @@ int main(int argc, char *argv[])
 	printf("==== Decteting Start ====\n");
 	while (1) {
 		is_trading_hour();
-		if (g_loop_time % 10 == 0)
+		//g_loop_time = get_sys_time();
+		if (g_loop_time % VOLUME_PERIOD == 0) {
 			update_stocks_data();
+		#if 0
+			int i, j;
+			for (i = 0; i < amount; i ++) {
+				printf("%s:\t", stocks[i]);
+				for (j = 0; j < HISTORY_MAX; j ++) {
+					printf("[%d]p=%d t=%d v=%lld\t", 
+						j,
+						stocks_sp[i].his[j].price,
+						stocks_sp[i].his[j].time,
+						stocks_sp[i].his[j].volume);
+				}
+				printf("\n");
+			}
+			printf("\n");
+		#endif
+		}
 		do_process();
 		usleep(1 * 1000 * 1000);
 	}
@@ -563,7 +584,87 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+static int p1, p2, p3;
+static int t1, t2, t3;
+static long long v1, v2, v3;
+
+static int get_key_data(struct stock_s *s)
+{
+	int next = s->next;
+	if (next == 0) {
+		p1 = s->his[HISTORY_MAX - 3].price;
+		p2 = s->his[HISTORY_MAX - 2].price;
+		p3 = s->his[HISTORY_MAX - 1].price;
+		t1 = s->his[HISTORY_MAX - 3].time;
+		t2 = s->his[HISTORY_MAX - 2].time;
+		t3 = s->his[HISTORY_MAX - 1].time;
+		v1 = s->his[HISTORY_MAX - 3].volume;
+		v2 = s->his[HISTORY_MAX - 2].volume;
+		v3 = s->his[HISTORY_MAX - 1].volume;
+	} else if (next == 1) {
+		p1 = s->his[HISTORY_MAX - 2].price;
+		p2 = s->his[HISTORY_MAX - 1].price;
+		p3 = s->his[0].price;
+		t1 = s->his[HISTORY_MAX - 2].time;
+		t2 = s->his[HISTORY_MAX - 1].time;
+		t3 = s->his[0].time;
+		v1 = s->his[HISTORY_MAX - 2].volume;
+		v2 = s->his[HISTORY_MAX - 1].volume;
+		v3 = s->his[0].volume;
+	} else if (next == 2) {
+		p1 = s->his[HISTORY_MAX - 1].price;
+		p2 = s->his[0].price;
+		p3 = s->his[1].price;
+		t1 = s->his[HISTORY_MAX - 1].time;
+		t2 = s->his[0].time;
+		t3 = s->his[1].time;
+		v1 = s->his[HISTORY_MAX - 1].volume;
+		v2 = s->his[0].volume;
+		v3 = s->his[1].volume;
+	} else {
+		p1 = s->his[next - 3].price;
+		p2 = s->his[next - 2].price;
+		p3 = s->his[next - 1].price;
+		t1 = s->his[next - 3].time;
+		t2 = s->his[next - 2].time;
+		t3 = s->his[next - 1].time;
+		v1 = s->his[next - 3].volume;
+		v2 = s->his[next - 2].volume;
+		v3 = s->his[next - 1].volume;
+	}
+	if (p1 == 0 || p2 == 0 || p3 == 0
+			|| t1 == 0 || t2 == 0 || t3 == 0
+			|| v1 == 0 || v2 == 0 || v3 == 0) return 0;
+	return 1;
+}
+
 void do_process(void)
 {
-	return;
+	int i;
+	int t_last, t_curr;
+	long long v_last, v_curr;
+	struct stock_s *s;
+	for (i = 0; i < amount; i ++) {
+		if (get_key_data(&stocks_sp[i]) == 0) continue;
+		t_last = t2 - t1;
+		t_curr = t3 - t2;
+		v_last = v2 - v1;
+		v_curr = v3 - v2;
+		if (t_last > VOLUME_PERIOD + 2 ||
+			t_last < VOLUME_PERIOD - 2) continue;
+		if (t_curr > VOLUME_PERIOD + 2 ||
+			t_curr < VOLUME_PERIOD - 2) continue;
+		if (v_curr > v_last * 2) {
+			if (stocks_sp[i].tipped == t3) continue;
+			printf("%02d:%02d:%02d(%s)\t%d.%02d\t%s\n",
+				t3 / 3600,
+				(t3 % 3600) / 60,
+				(t3 % 3600) % 60,
+				stocks[i],
+				p3 / 100,
+				p3 % 100,
+				p3 >= p2 ? "up" : "down");
+			stocks_sp[i].tipped = t3;
+		}
+	}
 }
