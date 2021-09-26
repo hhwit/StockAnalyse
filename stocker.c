@@ -11,7 +11,8 @@
 #include <fcntl.h>
 #include <time.h>
 
-#define BUFFER_LENGTH	(7 * 5000)
+#define LIST_FILE_BUF_LEN	(500 * 1024)
+#define LIST_LIST_BUF_LEN	(7 * 5000)
 static char **stocks = 0;
 static int amount;
 
@@ -283,7 +284,7 @@ static void do_look_one(char *data, char *code)
 	free(p);
 }
 
-static char *get_list_data(char *path)
+static char *get_list_data(char *path, int *len)
 {
 	int fp, ret;
 	char *data;
@@ -296,33 +297,35 @@ static char *get_list_data(char *path)
 		printf("Can't open list: %s\n", path);
 		return 0;
 	}
-	data = (char *)malloc(BUFFER_LENGTH);
-	memset(data, 0, BUFFER_LENGTH);
-	ret = read(fp, data, BUFFER_LENGTH);
+	data = (char *)malloc(LIST_FILE_BUF_LEN);
+	memset(data, 0, LIST_FILE_BUF_LEN);
+	ret = read(fp, data, LIST_FILE_BUF_LEN);
+	close(fp);
 	if (ret <= 0) return 0;
+	*len = ret;
 	return data;
 }
 
-static int handle_list_data(char *data)
+static char *handle_list_data(char *data, int len, int *num)
 {
-	int i, j, c = 0;
-	char *tmp;
-	tmp = (char *)malloc(BUFFER_LENGTH);
-	memcpy(tmp, data, BUFFER_LENGTH);
-	memset(data, 0, BUFFER_LENGTH);
-	for (i = 0, j = 0; i < BUFFER_LENGTH; i ++) {
-		if (tmp[i] >= '0' && tmp[i] <= '9') {
-			data[j] = tmp[i];
-			j ++;
-		} else {
-			if (data[j - 1] != 0) {
-				j ++;
-				c ++;
-			}
+	int i, n;
+	char *tmp, *sp;
+	char *p = data;
+	tmp = (char *)malloc(LIST_LIST_BUF_LEN);
+	memset(tmp, 0, sizeof(LIST_LIST_BUF_LEN));
+	for (i = 0; i < len; i ++, p ++)
+		if ( *p < '0' || *p > '9') *p = 0;
+	sp = tmp; p = data;
+	for (i = 0, n = 0; i < len; i ++, p ++) {
+		if (!(*p)) continue;
+		if (strlen(p) == 6) {
+			memcpy(sp, p, 6);
+			sp += 7; p += 6; i += 6; n ++;
 		}
 	}
-	free(tmp);
-	return c;
+	*num = n;
+	free(data);
+	return tmp;
 }
 
 static char **get_all_stocks_code(char *d, int n)
@@ -412,12 +415,12 @@ static int download_stock(char *save, char **code, int num)
 
 static void do_get_list(char *list)
 {
-	int i;
-	char *fdata;
-	fdata = get_list_data(list);
+	int i, len;
+	char *fdata, *list_buf;
+	fdata = get_list_data(list, &len);
 	if (fdata == 0) return;
-	amount = handle_list_data(fdata);
-	stocks = get_all_stocks_code(fdata, amount);
+	list_buf = handle_list_data(fdata, len, &amount);
+	stocks = get_all_stocks_code(list_buf, amount);
 	printf("Stocks count: %d\n", amount);
 	for (i = 0; i < amount; i ++) {
 		printf("%s\t", stocks[i]);
@@ -543,7 +546,7 @@ int main(int argc, char *argv[])
 		printf("Please input stock list to list.txt\n");
 		return 0;
 	}
-	//is_trading_hour();
+	is_trading_hour();
 	do_data_init();
 	printf("==== Decteting Start ====\n");
 	while (1) {
