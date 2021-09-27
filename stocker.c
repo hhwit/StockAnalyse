@@ -541,7 +541,7 @@ static void update_stocks_data(void)
 	}
 }
 
-#define VOLUME_PERIOD	30
+#define VOLUME_PERIOD	60
 
 int main(int argc, char *argv[])
 {
@@ -563,10 +563,12 @@ int main(int argc, char *argv[])
 			for (i = 0; i < amount; i ++) {
 				printf("%s:\t", stocks[i]);
 				for (j = 0; j < HISTORY_MAX; j ++) {
-					printf("[%d]p=%d t=%d v=%lld\t", 
+					printf("(%d:%d %02d:%02d:%02d %lld)\t",
 						j,
 						stocks_sp[i].his[j].price,
-						stocks_sp[i].his[j].time,
+						stocks_sp[i].his[j].time / 3600,
+						(stocks_sp[i].his[j].time % 3600) / 60,
+						(stocks_sp[i].his[j].time % 3600) % 60,
 						stocks_sp[i].his[j].volume);
 				}
 				printf("\n");
