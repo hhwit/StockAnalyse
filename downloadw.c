@@ -230,6 +230,8 @@ static void do_download(char *path,  int n)
 	int i;
 	for (i = 0; i < amount; i ++) {
 		download_stock(stocks[i], n, path);
+		if (i % 5 == 0)
+			usleep(5000 * 1000);
 	}
 }
 
