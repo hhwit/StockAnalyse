@@ -21,9 +21,9 @@ static long long gvolume = 0;
 static char *comma[64];
 static int cnum;
 
-static char stock_weeks_data[3000];
+static char *stock_weeks_data = 0;
 
-static int is_one_stab(int index);
+static int is_one_stab(char *, char *);
 
 static int string_check(char *s)
 {
@@ -129,8 +129,9 @@ static long long string_to_int(char *s)
 	return a;
 }
 
-static void do_look_one(int index)
+static void do_look_one(char *date)
 {
+	int i, n;
 	char *string;
 	cJSON *root, *item, *target;
 	gopen = 0; gclose = 0;
@@ -138,11 +139,22 @@ static void do_look_one(int index)
 	gvolume = 0;
 
 	root = cJSON_Parse(stock_weeks_data);
-	if (cJSON_GetArraySize(root) <= 0) {
+	n = cJSON_GetArraySize(root);
+	if (n <= 0) {
 		cJSON_Delete(root);
 		return;
 	}
-	item = cJSON_GetArrayItem(root, index);
+	for (i = 0; i < n; i ++) {
+		item = cJSON_GetArrayItem(root, i);
+		target = cJSON_GetObjectItem(item, "day");
+		string = cJSON_GetStringValue(target);
+		if (string == 0) continue;
+		if (strcmp(string, date) == 0) break;
+	}
+	if (i >= n) {
+		cJSON_Delete(root);
+		return;
+	}
 
 	target = cJSON_GetObjectItem(item, "open");
 	string = cJSON_GetStringValue(target);
@@ -238,7 +250,7 @@ static int get_stock_weeks_data(char *code)
 	char *data;
 	char path[128];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "dataw/%s", code);
+	sprintf(path, "dataw/dataw/%s", code);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
 		return -1;
@@ -248,13 +260,16 @@ static int get_stock_weeks_data(char *code)
 		printf("Can't open file: %s\n", path);
 		return -1;
 	}
-	memset(stock_weeks_data, 0, sizeof(stock_weeks_data));
-	ret = read(fp, stock_weeks_data, sizeof(stock_weeks_data));
+	#define WEEK_FILE_LEN	20 * 1024
+	if (stock_weeks_data == 0) 
+		stock_weeks_data = malloc(WEEK_FILE_LEN);
+	memset(stock_weeks_data, 0, WEEK_FILE_LEN);
+	ret = read(fp, stock_weeks_data, WEEK_FILE_LEN);
 	close(fp);
 	return ret;
 }
 
-static void do_all_stab(int index)
+static void do_all_stab(char *date1, char *date2)
 {
 	int i, c = 0;
 	do_get_list();
@@ -264,7 +279,7 @@ static void do_all_stab(int index)
 	}
 	for (i = 0; i < amount; i ++) {
 		get_stock_weeks_data(stocks[i]);
-		if (is_one_stab(index)) {
+		if (is_one_stab(date1, date2)) {
 			printf("%s\n", stocks[i]);
 			c ++;
 		}
@@ -274,25 +289,25 @@ static void do_all_stab(int index)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-		printf("Please input week index\n");
+	if (argc < 3) {
+		printf("Please input week date1 and date2\n");
 		return 0;
 	}
 	do_get_list();
-	printf("amount:%d\n", amount);
-	do_all_stab(string_to_int(argv[1])/100);
+	printf("List amount:%d\n\n", amount);
+	do_all_stab(argv[1], argv[2]);
 
 	printf("==== end ====\n");
 	return 0;
 }
 
-static int is_one_stab(int index)
+static int is_one_stab(char *date1, char *date2)
 {
 	int up1, obj1, down1, total1;
 	int up2, obj2, down2, total2;
 	int h1, h2, o1, o2, c1, c2, l1, l2;
 
-	do_look_one(index);
+	do_look_one(date1);
 	if (gopen <= 0
 		|| gclose <= 0
 		|| ghigh <= 0
@@ -309,7 +324,7 @@ static int is_one_stab(int index)
 	if (obj1 < c1 * 1.3 / 100) return 0;
 	down1 = c1 - l1;
 
-	do_look_one(index + 1);
+	do_look_one(date2);
 	if (gopen <= 0
 		|| gclose <= 0
 		|| ghigh <= 0
