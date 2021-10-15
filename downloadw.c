@@ -228,7 +228,7 @@ static void download_stock(char *code, int num, char *path)
 static void do_download(char *path,  int n)
 {
 	int i;
-	for (i = 0; i < n; i ++) {
+	for (i = 0; i < amount; i ++) {
 		download_stock(stocks[i], n, path);
 	}
 }
