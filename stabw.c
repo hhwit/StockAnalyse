@@ -21,9 +21,9 @@ static long long gvolume = 0;
 static char *comma[64];
 static int cnum;
 
-static char stock_weeks_data[512];
+static char stock_weeks_data[3000];
 
-static int is_one_stab(void);
+static int is_one_stab(int index);
 
 static int string_check(char *s)
 {
@@ -254,7 +254,7 @@ static int get_stock_weeks_data(char *code)
 	return ret;
 }
 
-static void do_all_stab(void)
+static void do_all_stab(int index)
 {
 	int i, c = 0;
 	do_get_list();
@@ -264,7 +264,7 @@ static void do_all_stab(void)
 	}
 	for (i = 0; i < amount; i ++) {
 		get_stock_weeks_data(stocks[i]);
-		if (is_one_stab()) {
+		if (is_one_stab(index)) {
 			printf("%s\n", stocks[i]);
 			c ++;
 		}
@@ -274,25 +274,25 @@ static void do_all_stab(void)
 
 int main(int argc, char *argv[])
 {
-	//if (argc < 2) {
-	//	printf("Please input week index\n");
-	//	return 0;
-	//}
+	if (argc < 2) {
+		printf("Please input week index\n");
+		return 0;
+	}
 	do_get_list();
 	printf("amount:%d\n", amount);
-	do_all_stab();
+	do_all_stab(string_to_int(argv[1])/100);
 
 	printf("==== end ====\n");
 	return 0;
 }
 
-static int is_one_stab(void)
+static int is_one_stab(int index)
 {
 	int up1, obj1, down1, total1;
 	int up2, obj2, down2, total2;
 	int h1, h2, o1, o2, c1, c2, l1, l2;
 
-	do_look_one(0);
+	do_look_one(index);
 	if (gopen <= 0
 		|| gclose <= 0
 		|| ghigh <= 0
@@ -304,12 +304,12 @@ static int is_one_stab(void)
 	if (o1 <= c1) return 0;
 	total1 = h1 - l1;
 	up1 = h1 - o1;
-	if (up1 > total1 * 40 / 100) return 0;
+	if (up1 > total1 * 20 / 100) return 0;
 	obj1 = o1 - c1;
-	if (obj1 < c1 * 1.5 / 100) return 0;
+	if (obj1 < c1 * 1.3 / 100) return 0;
 	down1 = c1 - l1;
 
-	do_look_one(1);
+	do_look_one(index + 1);
 	if (gopen <= 0
 		|| gclose <= 0
 		|| ghigh <= 0
@@ -321,11 +321,11 @@ static int is_one_stab(void)
 	if (c2 < o2) return 0;
 	total2 = h2 - l2;
 	up2 = h2 - c2;
-	if (up2 > total2 * 40 / 100) return 0;
+	if (up2 > total2 * 20 / 100) return 0;
 	obj2 = c2 - o2;
 	if (obj2 < o2 * 1 / 100) return 0;
 	down2 = o2 - l2;
-	if (down2 > total2 * 40 / 100) return 0;
+	if (down2 > total2 * 20 / 100) return 0;
 
 	//if (o2 > c1 + (obj1 / 5)) return 0;
 	//if (c2 > o1 + (obj1 / 5)) return 0;
