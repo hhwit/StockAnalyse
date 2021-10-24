@@ -323,7 +323,7 @@ static void do_all_stab(char *date1, char *date2, char *date3)
 	}
 	for (i = 0; i < amount; i ++) {
 		if (is_one_stab(stocks[i], date1, date2, date3)) {
-			printf("%s\n", stocks[i]);
+			//printf("%s\n", stocks[i]);
 			c ++;
 		}
 	}
@@ -424,6 +424,7 @@ static int is_one_stab(char *code, char *date1, char *date2, char *date3)
 	if (o2 > c1 + (obj1 / 5)) return 0;
 	if (c2 > o1 + (obj1 / 5)) return 0;
 	//if (c2 < (c1 + o1) / 2) return 0;
+	printf("%s  %03d  %03d\n", code, (c2-c1) * 1000 / c1, (c2-o2) * 1000 / o2);
 #if 0
 	do_look_one(date3, code);
 	if (gopen <= 0

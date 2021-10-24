@@ -237,14 +237,16 @@ static void do_download(char *path,  int n)
 
 int main(int argc, char *argv[])
 {
-	if (argc < 2) {
-		printf("Please input how many weeks for saving\n");
+	char path[32];
+	if (argc < 3) {
+		printf("Please input path & how many weeks for saving\n");
 		return 0;
 	}
 	do_get_list("list.all");
-	#define SAVED_PATH	"dataw/"
-	path_check(SAVED_PATH);
-	do_download(SAVED_PATH, string_to_int(argv[1])/100);
+	memset(path, 0, sizeof(path));
+	sprintf(path, "%s/", argv[1]);
+	path_check(path);
+	do_download(path, string_to_int(argv[2])/100);
 
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
