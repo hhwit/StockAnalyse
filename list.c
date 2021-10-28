@@ -397,7 +397,7 @@ static void do_gen_list(void)
 			ret = is_list_wanted(myfiles[j], stocks[i]);
 			if (!ret) continue;
 			n ++;
-			if (n >= 1) {
+			if (n >= 2) {
 				printf("%s\n", stocks[i]);
 				sum ++;
 				break;
