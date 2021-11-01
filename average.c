@@ -488,10 +488,10 @@ static int is_list_wanted(char *code)
 	//get_open_all(code);
 	//get_close_all(code);
 
-	if (avg5[0] < avg5[DATE_NUM - 1] &&
-		avg5[0] < avg5[DATE_NUM - 2]) return 0;
+	if (avg5[0] < avg5[DATE_NUM - 2] &&
+		avg5[0] < avg5[DATE_NUM - 3]) return 0;
 
-	for (i = 0; i < DATE_NUM - 1; i ++) {
+	for (i = 0; i < DATE_NUM - 3; i ++) {
 		f = (avg5[i + 1] - avg5[i]) * 1000 / avg5[i];
 		//printf("f=%d\n", f);
 		if (f > 10 || f < -10) return 0;
@@ -512,8 +512,8 @@ static int is_list_wanted(char *code)
 		|| gtoclose <= 0
 		|| ghigh <= 0
 		|| glow <= 0) return 0;
-	if (ghigh < avg5[DATE_NUM -1] * 1030 / 1000 &&
-		glow > avg5[DATE_NUM -1] * 940 / 1000) return 0;
+	if (ghigh < ((highs[DATE_NUM -1]) + lows[DATE_NUM -1] / 2) * 1050 / 1000 &&
+		glow > ((highs[DATE_NUM -1]) + lows[DATE_NUM -1] / 2) * 950 / 1000) return 0;
 
 	for (i = 0; i < DATE_NUM - 1; i ++) {
 		for (j = i + 1; j < DATE_NUM; j ++) {
