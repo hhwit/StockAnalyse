@@ -362,8 +362,36 @@ static void get_files(char *path)
 	closedir(dir);
 }
 
+static int avg5[DATE_NUM];
 static int opens[DATE_NUM];
 static int closes[DATE_NUM];
+static int highs[DATE_NUM];
+static int lows[DATE_NUM];
+
+static int get_average(char **filelist, char *code, int period)
+{
+	int avg = 0, i;
+	for (i = 0; i < period; i ++) {
+		do_look_one(filelist[i], code);
+		avg += gtoclose;
+	}
+	return avg / period;
+}
+
+static int get_avg5(char *code, int offset)
+{
+	if (myfiles_num < 5) return -1;
+	return get_average(&myfiles[myfiles_num - 5 - offset], code, 5);
+}
+
+static void get_avg5_all(char *code)
+{
+	int i;
+	for (i = 0; i < DATE_NUM; i ++) {
+		avg5[i] = get_avg5(code, i);
+		//printf("avg5[%d] = %d\n", i, avg5[i]);
+	}
+}
 
 static void get_open_all(char *code)
 {
@@ -380,6 +408,24 @@ static void get_close_all(char *code)
 	for (i = 0; i < DATE_NUM; i ++) {
 		do_look_one(myfiles[myfiles_num - i - 1], code);
 		closes[i] = gtoclose;
+	}
+}
+
+static void get_high_all(char *code)
+{
+	int i;
+	for (i = 0; i < DATE_NUM; i ++) {
+		do_look_one(myfiles[myfiles_num - i - 1], code);
+		highs[i] = ghigh;
+	}
+}
+
+static void get_low_all(char *code)
+{
+	int i;
+	for (i = 0; i < DATE_NUM; i ++) {
+		do_look_one(myfiles[myfiles_num - i - 1], code);
+		lows[i] = glow;
 	}
 }
 
@@ -422,9 +468,11 @@ int main(int argc, char *argv[])
 
 static int is_list_wanted(char *code)
 {
-	int i;
-	int avg[DATE_NUM];
+	int i, j, f;
 	int o1, c1, yc1;
+	int avgavg5 = 0, avghigh = 0, avglow = 0;
+	//int avgopen = 0, avgclose = 0;
+
 	do_look_one(myfiles[myfiles_num - 1], code);
 	if (gopen <= 0
 		|| gtoclose <= 0
@@ -434,20 +482,43 @@ static int is_list_wanted(char *code)
 	c1 = gtoclose;
 	yc1 = gyesclose;
 
-	get_open_all(code);
-	get_close_all(code);
+	get_avg5_all(code);
+	get_high_all(code);
+	get_low_all(code);
+	//get_open_all(code);
+	//get_close_all(code);
 
-	for (i = 0; i < DATE_NUM; i ++) {
-		avg[i] = (opens[i] + closes[i]) / 2;
+	if (avg5[0] < avg5[DATE_NUM - 1] &&
+		avg5[0] < avg5[DATE_NUM - 2]) return 0;
+
+	for (i = 0; i < DATE_NUM - 1; i ++) {
+		f = (avg5[i + 1] - avg5[i]) * 1000 / avg5[i];
+		//printf("f=%d\n", f);
+		if (f > 10 || f < -10) return 0;
 	}
 
-	for (i = 1; i < DATE_NUM; i ++) {
-		if (avg[i] > avg[0]) {
-			if (20 < (avg[i] - avg[0]) * 1000 / avg[0])
-				return 0;
-		} else {
-			if (20 < (avg[0] - avg[i]) * 1000 / avg[0])
-				return 0;
+	for (i = 0; i < DATE_NUM; i ++) {
+		avgavg5 += avg5[i];
+		avghigh += highs[i];
+		//avgopen += opens[i];
+		//avgclose += closes[i];
+	}
+
+	if (avgavg5 > avghigh) return 0;
+	if (avgavg5 < avglow) return 0;
+
+	do_look_one(myfiles[myfiles_num - DATE_NUM - 2], code);
+	if (gopen <= 0
+		|| gtoclose <= 0
+		|| ghigh <= 0
+		|| glow <= 0) return 0;
+	if (ghigh < avg5[DATE_NUM -1] * 1030 / 1000 &&
+		glow > avg5[DATE_NUM -1] * 940 / 1000) return 0;
+
+	for (i = 0; i < DATE_NUM - 1; i ++) {
+		for (j = i + 1; j < DATE_NUM; j ++) {
+			if (highs[i] < lows[j]) return 0;
+			if (lows[i] > highs[j]) return 0;
 		}
 	}
 
