@@ -11,7 +11,6 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#define DATE_NUM	8
 #define ONE_BUFFER_LENGTH	(1024)
 
 static int gopen = 0;
@@ -362,25 +361,32 @@ static void get_files(char *path)
 	closedir(dir);
 }
 
-static int opens[DATE_NUM];
-static int closes[DATE_NUM];
-
-static void get_open_all(char *code)
+static int get_average(char **filelist, char *code, int period)
 {
-	int i;
-	for (i = 0; i < DATE_NUM; i ++) {
-		do_look_one(myfiles[myfiles_num - i - 1], code);
-		opens[i] = gopen;
+	int avg = 0, i;
+	for (i = 0; i < period; i ++) {
+		do_look_one(filelist[i], code);
+		avg += gtoclose;
 	}
+	return avg / period;
 }
 
-static void get_close_all(char *code)
+static int get_avg5(char *code)
 {
-	int i;
-	for (i = 0; i < DATE_NUM; i ++) {
-		do_look_one(myfiles[myfiles_num - i - 1], code);
-		closes[i] = gtoclose;
-	}
+	if (myfiles_num < 5) return -1;
+	return get_average(&myfiles[myfiles_num - 5], code, 5);
+}
+
+static int get_avg10(char *code)
+{
+	if (myfiles_num < 10) return -1;
+	return get_average(&myfiles[myfiles_num - 10], code, 10);
+}
+
+static int get_avg20(char *code)
+{
+	if (myfiles_num < 20) return -1;
+	return get_average(&myfiles[myfiles_num - 20], code, 20);
 }
 
 static void do_gen_list(void)
@@ -390,6 +396,7 @@ static void do_gen_list(void)
 	for (i = 0; i < amount; i ++) {
 		ret = is_list_wanted(stocks[i]);
 		if (!ret) continue;
+		//printf("%s\n", stocks[i]);
 		sum ++;
 	}
 	printf("Found: %d\n", sum);
@@ -403,6 +410,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	get_files(argv[1]);
+	//printf("files number: %d\n", myfiles_num);
 	if (myfiles_num <= 0) return 0;
 	do_get_list();
 	if (amount <= 0) {
@@ -414,7 +422,7 @@ int main(int argc, char *argv[])
 	for (i = 0; i < myfiles_num; i ++) {
 		free(myfiles[i]);
 	}
-	printf("==== end ====\n");
+	//printf("==== end ====\n");
 	if (stocks[0]) free(stocks[0]);
 	if (stocks) free(stocks);
 	return 0;
@@ -422,9 +430,8 @@ int main(int argc, char *argv[])
 
 static int is_list_wanted(char *code)
 {
-	int i;
-	int avg[DATE_NUM];
 	int o1, c1, yc1;
+	int avg5, avg10, avg20;
 	do_look_one(myfiles[myfiles_num - 1], code);
 	if (gopen <= 0
 		|| gtoclose <= 0
@@ -433,23 +440,22 @@ static int is_list_wanted(char *code)
 	o1 = gopen;
 	c1 = gtoclose;
 	yc1 = gyesclose;
+	if (c1 < o1) return 0;
 
-	get_open_all(code);
-	get_close_all(code);
+	avg5 = get_avg5(code);
+	if (avg5 < 0) return 0;
+	if (c1 < avg5) return 0;
+	if (o1 > avg5) return 0;
 
-	for (i = 0; i < DATE_NUM; i ++) {
-		avg[i] = (opens[i] + closes[i]) / 2;
-	}
+	avg10 = get_avg10(code);
+	if (avg10 < 0) return 0;
+	if (c1 < avg10) return 0;
+	if (o1 > avg10) return 0;
 
-	for (i = 1; i < DATE_NUM; i ++) {
-		if (avg[i] > avg[0]) {
-			if (20 < (avg[i] - avg[0]) * 1000 / avg[0])
-				return 0;
-		} else {
-			if (20 < (avg[0] - avg[i]) * 1000 / avg[0])
-				return 0;
-		}
-	}
+	avg20 = get_avg20(code);
+	if (avg20 < 0) return 0;
+	if (c1 < avg20) return 0;
+	if (o1 > avg20) return 0;
 
 	printf("%s  %03d\n", code, (c1-yc1) * 1000 / yc1);
 
