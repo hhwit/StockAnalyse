@@ -421,9 +421,9 @@ static int is_one_stab(char *code, char *date1, char *date2, char *date3)
 	down2 = o2 - l2;
 	if (down2 > total2 * 40 / 100) return 0;
 
-	if (o2 > c1 + (obj1 / 5)) return 0;
-	if (c2 > o1 + (obj1 / 5)) return 0;
-	//if (c2 < (c1 + o1) / 2) return 0;
+	if (o2 > c1 + (obj1 / 1)) return 0;
+	if (c2 > o1 + (obj1 / 1)) return 0;
+	if (40 > (c2-o2) * 1000 / o2) return 0;
 	printf("%s  %03d  %03d\n", code, (c2-c1) * 1000 / c1, (c2-o2) * 1000 / o2);
 #if 0
 	do_look_one(date3, code);
