@@ -26,6 +26,7 @@ static int cnum;
 
 #define MY_FILES_MAX	250
 static char *myfiles[MY_FILES_MAX];
+static char *myfiles_date[MY_FILES_MAX];
 static int myfiles_num = 0;
 
 static int is_one_gap(char *code);
@@ -313,7 +314,7 @@ static char **get_all_stocks_code(char *d, int n)
 static void do_get_list(void)
 {
 	char *fdata;
-	fdata = get_list_data("list.g95");
+	fdata = get_list_data("list.all");
 	amount = handle_list_data(fdata);
 	stocks = get_all_stocks_code(fdata, amount);
 }
@@ -372,6 +373,9 @@ static void get_files(char *path)
 		if (myfiles_num > MY_FILES_MAX) break;
 		if (ptr->d_type != DT_REG) continue;
 		myfiles[myfiles_num] = get_stocks_data(path, ptr->d_name);
+		myfiles_date[myfiles_num] = (char *)malloc(32);
+		memset(myfiles_date[myfiles_num], 0, 32);
+		memcpy(myfiles_date[myfiles_num], ptr->d_name, strlen(ptr->d_name));
 		if (myfiles[myfiles_num]) myfiles_num ++;
 	}
 	closedir(dir);
@@ -397,6 +401,7 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < myfiles_num; i ++) {
 		free(myfiles[i]);
+		free(myfiles_date[i]);
 	}
 	printf("==== end ====\n");
 	if (stocks[0]) free(stocks[0]);
@@ -443,10 +448,12 @@ static int is_one_gap(char *code)
 			|| ghigh <= 0
 			|| glow <= 0) return 0;
 		if (glow <= m_gap_low) return 0;
-		if (glow <= m_gap_high * 1010 / 1000)
-			count ++;
+		if (glow <= m_gap_high * 1010 / 1000) {
+			if (glow > m_gap_low * 1002 / 1000)
+				count ++;
+		}
 	}
 	if (count == 0) return 0;
-	printf("%s %d\n", code, index);
+	printf("%s %s\n", code, myfiles_date[index + 1]);
 	return 1;
 }
