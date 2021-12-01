@@ -347,16 +347,46 @@ static void gen_merge_string(char *date)
 		ghigh / 100, ghigh % 100,
 		glow / 100, glow % 100,
 		gtoclose / 100, gtoclose % 100,
-		gvolume /100);
+		gvolume / 100);
 	//printf("%s\n", merge_s);
+}
+
+static int do_merge_one(char *code)
+{
+	int fp, ret;
+	char path[32];
+	memset(path, 0, sizeof(path));
+	sprintf(path, "data2/data2/%s", code);
+	if (access(path, F_OK) < 0) return -1;
+	fp = open(path, O_RDWR);
+	if (fp < 0) return -1;
+	ret = lseek(fp, -1, SEEK_END);
+	if (ret < 0) {
+		close(fp);
+		return -1;
+	}
+	ret = write(fp, merge_s, strlen(merge_s));
+	close(fp);
+	return 0;
+}
+
+static void do_merge_all(char *data, char *day)
+{
+	int i;
+	for (i = 0; i < amount; i ++) {
+		do_look_one(data, stocks[i]);
+		if (gopen == 0) continue;
+		gen_merge_string(day);
+		do_merge_one(stocks[i]);
+	}
 }
 
 int main(int argc, char *argv[])
 {
 	char *date = 0;
 
-	if (argc < 3) {
-		printf("Please input des & date\n");
+	if (argc < 2) {
+		printf("Please input day\n");
 		return 0;
 	}
 
@@ -365,10 +395,8 @@ int main(int argc, char *argv[])
 	printf("amount=%d\n", amount);
 
 	// get date data for merge
-	date = get_stocks_data(argv[2]);
-	do_look_one(date, stocks[0]);
-	printf("gopen=%d\n", gopen);
-	gen_merge_string(argv[2]);
+	date = get_stocks_data(argv[1]);
+	do_merge_all(date, argv[1]);
 
 	if (amount) free(stocks);
 	if (date) free(date);
