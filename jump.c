@@ -9,64 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <dirent.h>
-
-#define ONE_BUFFER_LENGTH	(1024)
-
-static int gopen = 0;
-static int gyesclose = 0;
-static int gtoclose = 0;
-static int ghigh = 0;
-static int glow = 0;
-static long long gvolume = 0;
-static long long gturnover = 0;
-
-static char *comma[64];
-static int cnum;
-
-#define MY_FILES_MAX	250
-static char *myfiles[MY_FILES_MAX];
-static char *myfiles_date[MY_FILES_MAX];
-static int myfiles_num = 0;
-
-static int is_one_gap(char *code);
-
-static int get_commas(char *data)
-{
-	int i;
-	int l = strlen(data);
-	if (l <= 0) {
-		printf("Wrong data length: %s\n", data);
-		return -1;
-	}
-	cnum = 0;
-	for (i = 0; i < l; i ++) {
-		if (data[i] == ',') {
-			comma[cnum] = &data[i];
-			cnum ++;
-		}
-	}
-	return cnum;
-}
-
-static int string_check(char *s)
-{
-	int i, l;
-	l = strlen(s);
-	if (l < 1 || l > 16) {
-		printf("Wrong string length: %s\n", s);
-		return -1;
-	}
-	for (i = 0; i < l; i ++) {
-		if ((s[i] >= '0' && s[i] <= '9') || s[i] == '.') {
-			continue;
-		} else {
-			printf("Wrong string formate: %s\n", s);
-			return -1;
-		}
-	}
-	return 0;
-}
+#include "cJSON.h"
 
 static long long str_to_decimal(int order, char s)
 {
@@ -127,14 +70,33 @@ static long long str_to_decimal(int order, char s)
 	return a;
 }
 
+static int string_check(char *s)
+{
+	int i, l;
+	l = strlen(s);
+	if (l < 1 || l > 16) {
+		printf("Wrong string length: %s\n", s);
+		return -1;
+	}
+	for (i = 0; i < l; i ++) {
+		if ((s[i] >= '0' && s[i] <= '9') || s[i] == '.') {
+			continue;
+		} else {
+			printf("Wrong string formate: %s\n", s);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static long long string_to_int(char *s)
 {
 	char *p;
-	long long a;
+	long long a = 0;
 	int i, j, n, m;
 	int l = strlen(s);
-	if (l <= 0) return -1;
-	if (string_check(s) < 0) return -1;
+	if (l <= 0) return 0;
+	if (string_check(s) < 0) return 0;
 	p = strstr(s, ".");
 	if (p) {
 		n = p - s;
@@ -151,107 +113,6 @@ static long long string_to_int(char *s)
 	else if (m == 1)
 		a += *(p + 1) - '0';
 	return a;
-}
-
-static int get_open(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[0] + 1, comma[1] - comma[0] - 1);
-	gopen = string_to_int(buf);
-	return gopen;
-}
-
-static int get_yesclose(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[1] + 1, comma[2] - comma[1] - 1);
-	gyesclose = string_to_int(buf);
-	return gyesclose;
-}
-
-static int get_toclose(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[2] + 1, comma[3] - comma[2] - 1);
-	gtoclose = string_to_int(buf);
-	return gtoclose;
-}
-
-static int get_high(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[3] + 1, comma[4] - comma[3] - 1);
-	ghigh = string_to_int(buf);
-	return ghigh;
-}
-
-static int get_low(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[4] + 1, comma[5] - comma[4] - 1);
-	glow = string_to_int(buf);
-	return glow;
-}
-
-static long long get_volume(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[7] + 1, comma[8] - comma[7] - 1);
-	gvolume = string_to_int(buf);
-	return gvolume;
-}
-
-static long long get_turnover(void)
-{
-	char buf[32];
-	memset(buf, 0, sizeof(buf));
-	memcpy(buf, comma[8] + 1, comma[9] - comma[8] - 1);
-	gturnover = string_to_int(buf);
-	return gturnover;
-}
-
-static char *get_original_data(char *stocks_data, char *code)
-{
-	char *data, *p;
-	char key[16];
-	memset(key, 0, sizeof(16));
-	sprintf(key, "%s%s", code[0]=='6'? "sh":"sz", code);
-	p = strstr(stocks_data, key);
-	if (!p) return 0;
-	data = (char *)malloc(ONE_BUFFER_LENGTH);
-	memset(data, 0, ONE_BUFFER_LENGTH);
-	memcpy(data, p, 300);
-
-	return data;
-}
-
-static int parse_original_data(char *data)
-{
-	int ret;
-	ret = get_commas(data);
-	if (ret <= 0) return ret;
-	get_open();
-	get_yesclose();
-	get_toclose();
-	get_high();
-	get_low();
-	get_volume();
-	get_turnover();
-	return ret;
-}
-
-static void do_look_one(char *data, char *code)
-{
-	char *p = get_original_data(data, code);
-	if (!p) return;
-	parse_original_data(p);
-	free(p);
 }
 
 #define BUFFER_LENGTH	(7 * 5000)
@@ -319,141 +180,174 @@ static void do_get_list(void)
 	stocks = get_all_stocks_code(fdata, amount);
 }
 
-static void do_all_gap(void)
-{
-	int i, c = 0;
-	do_get_list();
-	if (amount <= 0) {
-		printf("No stock found\n");
-		return;
-	}
-	for (i = 0; i < amount; i ++) {
-		if (is_one_gap(stocks[i])) {
-			//printf("%s\n", stocks[i]);
-			c ++;
-		}
-	}
-	printf("Found: %d\n", c);
-}
+struct gap_s {
+	int high;
+	int low;
+};
 
-#define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
-static char *get_stocks_data(char *dir, char *name)
+static struct gap_s m_gaps[120];
+static int m_gaps_len = 0;
+
+static char *m_day_data = 0;
+
+static int get_day_file_data(char *code)
 {
 	int fp, ret;
 	char *data;
 	char path[128];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "%s/%s", dir, name);
+	sprintf(path, "data2/data2/%s", code);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
-		return 0;
+		return -1;
 	}
 	fp = open(path, O_RDONLY);
 	if (fp < 0) {
 		printf("Can't open file: %s\n", path);
-		return 0;
+		return -1;
 	}
-	data = (char *)malloc(STOCKS_DATA_BUFFER_LENGTH);
-	ret = read(fp, data, STOCKS_DATA_BUFFER_LENGTH);
+	#define WEEK_FILE_LEN	20 * 1024
+	if (m_day_data == 0) 
+		m_day_data = malloc(WEEK_FILE_LEN);
+	memset(m_day_data, 0, WEEK_FILE_LEN);
+	ret = read(fp, m_day_data, WEEK_FILE_LEN);
 	close(fp);
-	if (ret <= 0) return 0;
-	return data;
+	return ret;
 }
 
-static void get_files(char *path)
+static cJSON *m_root;
+static int m_start_index, m_end_index;
+static int gaps_init(char *code, char *start, char *end)
 {
-	DIR * dir;
-	struct dirent * ptr;
-	dir = opendir(path);
-	if (!dir) {
-		printf("Open failed: %s\n", path);
-		return;
+	char *string;
+	int ret, n, i;
+	cJSON *root, *item, *target;
+
+	ret = get_day_file_data(code);
+	if (ret <= 0) return -1;
+	root = cJSON_Parse(m_day_data);
+	n = cJSON_GetArraySize(root);
+#define GAP_DAYS_MIN	4
+	if (n < GAP_DAYS_MIN) {
+		cJSON_Delete(root);
+		return -1;
 	}
-	while((ptr = readdir(dir)) != NULL) {
-		if (myfiles_num > MY_FILES_MAX) break;
-		if (ptr->d_type != DT_REG) continue;
-		myfiles[myfiles_num] = get_stocks_data(path, ptr->d_name);
-		myfiles_date[myfiles_num] = (char *)malloc(32);
-		memset(myfiles_date[myfiles_num], 0, 32);
-		memcpy(myfiles_date[myfiles_num], ptr->d_name, strlen(ptr->d_name));
-		if (myfiles[myfiles_num]) myfiles_num ++;
+	m_start_index = -1;
+	m_end_index = -1;
+	for (i = 0; i < n; i ++) {
+		item = cJSON_GetArrayItem(root, i);
+		target = cJSON_GetObjectItem(item, "day");
+		string = cJSON_GetStringValue(target);
+		if (string == 0) continue;
+		if (strcmp(string, start) == 0) {
+			if (n - i < GAP_DAYS_MIN)
+				return -1;
+			else
+				m_start_index = i;
+		}
 	}
-	closedir(dir);
+	if (m_start_index < -1) m_start_index = 0;
+	for (i = n - 1; i >= 0; i --) {
+		item = cJSON_GetArrayItem(root, i);
+		target = cJSON_GetObjectItem(item, "day");
+		string = cJSON_GetStringValue(target);
+		if (string == 0) continue;
+		if (strcmp(string, end) == 0)
+			m_end_index = i;
+	}
+	if (m_end_index < 0) return -1;
+	if (m_end_index - m_start_index + 1 < GAP_DAYS_MIN) return -1;
+	m_root = root;
+
+	return 0;
+}
+
+static int ghigh = 0;
+static int glow = 0;
+
+static long long get_element(int index, char *key)
+{
+	char *string;
+	cJSON *item, *target;
+	item = cJSON_GetArrayItem(m_root, index);
+	target = cJSON_GetObjectItem(item, key);
+	string = cJSON_GetStringValue(target);
+	return string_to_int(string);
+}
+
+static void get_high(int index)
+{
+	ghigh = get_element(index, "high");
+}
+
+static void get_low(int index)
+{
+	glow = get_element(index, "low");
+}
+
+static void do_look_one(int index)
+{
+	get_high(index);
+	get_low(index);
+}
+
+static int gaps_parse(void)
+{
+	int i;
+	int h1, l1, h2, l2;
+	for (i = m_end_index - 1; i >= m_start_index; i --) {
+		do_look_one(i);
+		h1 = ghigh; l1 = glow;
+		do_look_one(i + 1);
+		h2 = ghigh; l2 = glow;
+		if (l2 > h1) {
+			m_gaps[m_gaps_len].high = l2;
+			m_gaps[m_gaps_len].low = h1;
+			m_gaps_len ++;
+		}
+	}
+	return 0;
+}
+
+static void gaps_deinit(void)
+{
+	cJSON_Delete(m_root);
+}
+
+static int is_one_jump(void)
+{
+	gaps_parse();
+	if (m_gaps_len <= 0) return 0;
+	printf("m_gaps_len=%d\n", m_gaps_len);
+}
+
+static void do_all_jumps(char *start, char *end)
+{
+	int i, c = 0;
+	for (i = 0; i < amount; i ++) {
+		if (gaps_init(stocks[i], start, end) < 0)
+			continue;
+		if (is_one_jump()) {
+			printf("%s\n", stocks[i]);
+			c ++;
+		}
+		gaps_deinit();
+	}
+	printf("Found: %d\n", c);
 }
 
 int main(int argc, char *argv[])
 {
-	int i;
-	if (argc < 2) {
-		printf("Please input src directory\n");
+	if (argc < 3) {
+		printf("Please input start day & end day\n");
 		return 0;
 	}
-	get_files(argv[1]);
-
-	if (myfiles_num <= 0) return 0;
 	do_get_list();
-	if (amount <= 0) {
-		printf("No stock found\n");
-		return 0;
-	}
+	printf("amount=%d\n", amount);
 
-	do_all_gap();
+	do_all_jumps(argv[1], argv[2]);
 
-	for (i = 0; i < myfiles_num; i ++) {
-		free(myfiles[i]);
-		free(myfiles_date[i]);
-	}
+	if (amount) free(stocks);
 	printf("==== end ====\n");
-	if (stocks[0]) free(stocks[0]);
-	if (stocks) free(stocks);
 	return 0;
-}
-
-static int m_gap_low = 0;
-static int m_gap_high = 0;
-
-static int find_gap(char *code, char *date1, char *date2)
-{
-	int h1;
-	do_look_one(date1, code);
-	if (gopen <= 0
-		|| gtoclose <= 0
-		|| ghigh <= 0
-		|| glow <= 0) return 0;
-	h1 = ghigh;
-	do_look_one(date2, code);
-	if (gopen <= 0
-		|| gtoclose <= 0
-		|| ghigh <= 0
-		|| glow <= 0) return 0;
-	if (glow <= h1) return 0;
-	m_gap_low = h1;
-	m_gap_high = glow;
-	return 1;
-}
-
-static int is_one_gap(char *code)
-{
-	int i, index, count = 0, ret;
-	for (i = myfiles_num - 4; i >= 0; i --) {
-		ret = find_gap(code, myfiles[i], myfiles[i+1]);
-		if (ret) break;
-	}
-	if (i < 0) return 0;
-	index = i;
-	for (i = index + 2; i < myfiles_num; i ++) {
-		do_look_one(myfiles[i], code);
-		if (gopen <= 0
-			|| gtoclose <= 0
-			|| ghigh <= 0
-			|| glow <= 0) return 0;
-		if (glow <= m_gap_low) return 0;
-		if (glow <= m_gap_high * 1010 / 1000) {
-			if (glow > m_gap_low * 1002 / 1000)
-				count ++;
-		}
-	}
-	if (count == 0) return 0;
-	printf("%s %s\n", code, myfiles_date[index + 1]);
-	return 1;
 }
