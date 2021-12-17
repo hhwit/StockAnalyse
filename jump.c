@@ -232,8 +232,8 @@ static int gaps_init(char *code, char *start, char *end)
 		cJSON_Delete(root);
 		return -1;
 	}
-	m_start_index = -1;
-	m_end_index = -1;
+	m_start_index = 0;
+	m_end_index = 0;
 	for (i = 0; i < n; i ++) {
 		item = cJSON_GetArrayItem(root, i);
 		target = cJSON_GetObjectItem(item, "day");
@@ -246,7 +246,6 @@ static int gaps_init(char *code, char *start, char *end)
 				m_start_index = i;
 		}
 	}
-	if (m_start_index < -1) m_start_index = 0;
 	for (i = n - 1; i >= 0; i --) {
 		item = cJSON_GetArrayItem(root, i);
 		target = cJSON_GetObjectItem(item, "day");
@@ -255,7 +254,7 @@ static int gaps_init(char *code, char *start, char *end)
 		if (strcmp(string, end) == 0)
 			m_end_index = i;
 	}
-	if (m_end_index < 0) return -1;
+	if (m_end_index <= 0) return -1;
 	if (m_end_index - m_start_index + 1 < GAP_DAYS_MIN) return -1;
 	m_root = root;
 
@@ -295,6 +294,7 @@ static int gaps_parse(void)
 {
 	int i;
 	int h1, l1, h2, l2;
+	m_gaps_len = 0;
 	for (i = m_end_index - 1; i >= m_start_index; i --) {
 		do_look_one(i);
 		h1 = ghigh; l1 = glow;
@@ -350,12 +350,23 @@ static void print_gaps(void)
 
 static int is_one_jump(void)
 {
+	int i, l1;
+	//printf("s:%d e:%d\n", m_start_index, m_end_index);
 	gaps_parse();
 	if (m_gaps_len <= 0) return 0;
-	printf("m_gaps_len=%d\n", m_gaps_len);
-	print_gaps();
+	//printf("m_gaps_len=%d\n", m_gaps_len);
+	//print_gaps();
 	gaps_fill();
-	print_gaps();
+	//print_gaps();
+	for (i = 0; i < m_gaps_len; i ++) {
+		if (m_gaps[i].high) break;
+	}
+	if (i >= m_gaps_len) return 0;
+	do_look_one(m_end_index);
+	if (glow <= 0) return 0;
+	l1 = glow;
+	if (l1 > m_gaps[i].high * 102 / 100) return 0;
+
 	return 1;
 }
 
