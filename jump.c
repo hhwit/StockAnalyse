@@ -181,6 +181,7 @@ static void do_get_list(void)
 }
 
 struct gap_s {
+	int index;
 	int high;
 	int low;
 };
@@ -295,12 +296,13 @@ static int gaps_parse(void)
 	int i;
 	int h1, l1, h2, l2;
 	m_gaps_len = 0;
-	for (i = m_end_index - 1; i >= m_start_index; i --) {
+	for (i = m_end_index - 2; i >= m_start_index; i --) {
 		do_look_one(i);
 		h1 = ghigh; l1 = glow;
 		do_look_one(i + 1);
 		h2 = ghigh; l2 = glow;
 		if (l2 > h1) {
+			m_gaps[m_gaps_len].index = i;
 			m_gaps[m_gaps_len].high = l2;
 			m_gaps[m_gaps_len].low = h1;
 			m_gaps_len ++;
@@ -317,10 +319,22 @@ static int gaps_fill(void)
 		do_look_one(i);
 		h1 = ghigh; l1 = glow;
 		for (j = 0; j < m_gaps_len; j ++) {
+			//printf("h:%d l:%d\n", h1, l1);
 			if (m_gaps[j].high == 0) continue;
+			//printf("%d\n", __LINE__);
 			if (m_gaps[j].low == 0) continue;
-			if (h1 <= m_gaps[j].low || l1 >= m_gaps[j].high)
+			//printf("%d\n", __LINE__);
+			if (i <= m_gaps[j].index + 1) continue;
+			//printf("%d\n", __LINE__);
+			if (l1 >= m_gaps[j].high)
 				continue;
+			//printf("%d\n", __LINE__);
+			if (h1 <= m_gaps[j].low) {
+				m_gaps[j].high = 0;
+				m_gaps[j].low = 0;
+				continue;
+			}
+			//printf("%d\n", __LINE__);
 			if (h1 >= m_gaps[j].high) {
 				if (l1 > m_gaps[j].low) {
 					m_gaps[j].high = l1;
@@ -329,7 +343,7 @@ static int gaps_fill(void)
 					m_gaps[j].low = 0;
 				}
 			} else {
-				m_gaps[j].high = h1;
+				m_gaps[j].low = h1;
 			}
 		}
 	}
@@ -347,6 +361,8 @@ static void print_gaps(void)
 		printf("%02d: %d  %d\n", i, m_gaps[i].high, m_gaps[i].low);
 	}
 }
+
+static int m_gap_distance = 0;
 
 static int is_one_jump(void)
 {
@@ -366,6 +382,7 @@ static int is_one_jump(void)
 	if (glow <= 0) return 0;
 	l1 = glow;
 	if (l1 > m_gaps[i].high * 102 / 100) return 0;
+	m_gap_distance = m_gaps[i].index;
 
 	return 1;
 }
@@ -377,7 +394,7 @@ static void do_all_jumps(char *start, char *end)
 		if (gaps_init(stocks[i], start, end) < 0)
 			continue;
 		if (is_one_jump()) {
-			printf("%s\n", stocks[i]);
+			printf("%s  %d\n", stocks[i], m_end_index - m_gap_distance - 1);
 			c ++;
 		}
 		gaps_deinit();
