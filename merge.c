@@ -341,7 +341,7 @@ static char merge_s[256];
 static void gen_merge_string(char *date)
 {
 	memset(merge_s, 0, sizeof(merge_s));
-	sprintf(merge_s, ",{\"day\":\"%s\",\"open\":\"%d.%d0\",\"high\":\"%d.%d0\",\"low\":\"%d.%d0\",\"close\":\"%d.%d0\",\"volume\":\"%lld\"}]",
+	sprintf(merge_s, ",{\"day\":\"%s\",\"open\":\"%d.%02d0\",\"high\":\"%d.%02d0\",\"low\":\"%d.%02d0\",\"close\":\"%d.%02d0\",\"volume\":\"%lld\"}]",
 		date,
 		gopen / 100, gopen % 100,
 		ghigh / 100, ghigh % 100,
