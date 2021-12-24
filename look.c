@@ -23,6 +23,8 @@ static long long gturnover = 0;
 static char *comma[64];
 static int cnum;
 
+static int is_one_stab(char *code, char *date1, char *date2, char *date3);
+
 static int get_commas(char *data)
 {
 	int i;
@@ -249,6 +251,14 @@ static int parse_original_data(char *data)
 	return ret;
 }
 
+static void do_look_one(char *data, char *code)
+{
+	char *p = get_original_data(data, code);
+	if (!p) return;
+	parse_original_data(p);
+	free(p);
+}
+
 #define STOCKS_DATA_BUFFER_LENGTH	(2 * 1024 * 1024)
 static char *get_stocks_data(char *date)
 {
@@ -256,7 +266,7 @@ static char *get_stocks_data(char *date)
 	char *data;
 	char path[128];
 	memset(path, 0, sizeof(path));
-	sprintf(path, "data/%s.txt", date);
+	sprintf(path, "data/%s", date);
 	if (access(path, F_OK) < 0) {
 		printf("File does not exit: %s\n", path);
 		return 0;
@@ -273,14 +283,6 @@ static char *get_stocks_data(char *date)
 	return data;
 }
 
-static void do_look(char *data, char *code)
-{
-	char *p = get_original_data(data, code);
-	if (!p) return;
-	parse_original_data(p);
-	free(p);
-}
-
 int main(int argc, char *argv[])
 {
 	char *data = 0;
@@ -289,10 +291,10 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	data = get_stocks_data(argv[1]);
+	data = get_stocks_data(argv[2]);
 	if (!data) return 0;
 
-	do_look(data, argv[2]);
+	do_look_one(data, argv[1]);
 	free(data);
 
 	printf("==== end ====\n");
