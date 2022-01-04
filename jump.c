@@ -264,6 +264,7 @@ static int gaps_init(char *code, char *start, char *end)
 
 static int ghigh = 0;
 static int glow = 0;
+static int gclose = 0;
 
 static long long get_element(int index, char *key)
 {
@@ -285,10 +286,16 @@ static void get_low(int index)
 	glow = get_element(index, "low");
 }
 
+static void get_close(int index)
+{
+	gclose = get_element(index, "close");
+}
+
 static void do_look_one(int index)
 {
 	get_high(index);
 	get_low(index);
+	get_close(index);
 }
 
 static int gaps_parse(void)
@@ -363,10 +370,13 @@ static void print_gaps(void)
 }
 
 static int m_gap_distance = 0;
+static int m_gap_close_low = 0;
+static int m_gap_close_high = 0;
 
 static int is_one_jump(void)
 {
 	int i, l1;
+	int c1, c2, c3;
 	//printf("s:%d e:%d\n", m_start_index, m_end_index);
 	gaps_parse();
 	if (m_gaps_len <= 0) return 0;
@@ -384,6 +394,18 @@ static int is_one_jump(void)
 	if (l1 > m_gaps[i].high * 102 / 100) return 0;
 	m_gap_distance = m_gaps[i].index;
 
+	m_gap_close_low = 0; m_gap_close_high = 0;
+	do_look_one(m_gaps[i].index);
+	c2 = gclose;
+	if (m_gaps[i].index != m_start_index) {
+		do_look_one(m_gaps[i].index - 1);
+		c1 = gclose;
+		m_gap_close_low = (c2 - c1) * 1000 / c1;
+	}
+	do_look_one(m_gaps[i].index + 1);
+	c3 = gclose;
+	m_gap_close_high = (c3 - c2) * 1000 / c2;
+
 	return 1;
 }
 
@@ -394,7 +416,11 @@ static void do_all_jumps(char *start, char *end)
 		if (gaps_init(stocks[i], start, end) < 0)
 			continue;
 		if (is_one_jump()) {
-			printf("%s  %d\n", stocks[i], m_end_index - m_gap_distance - 1);
+			printf("%s\t%02d\t%03d\t%03d\n", 
+				stocks[i],
+				m_end_index - m_gap_distance - 1,
+				m_gap_close_low,
+				m_gap_close_high);
 			c ++;
 		}
 		gaps_deinit();
