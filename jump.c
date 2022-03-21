@@ -264,6 +264,7 @@ static int gaps_init(char *code, char *start, char *end)
 
 static int ghigh = 0;
 static int glow = 0;
+static int gopen = 0;
 static int gclose = 0;
 
 static long long get_element(int index, char *key)
@@ -286,6 +287,11 @@ static void get_low(int index)
 	glow = get_element(index, "low");
 }
 
+static void get_open(int index)
+{
+	gopen = get_element(index, "open");
+}
+
 static void get_close(int index)
 {
 	gclose = get_element(index, "close");
@@ -295,6 +301,7 @@ static void do_look_one(int index)
 {
 	get_high(index);
 	get_low(index);
+	get_open(index);
 	get_close(index);
 }
 
@@ -372,11 +379,40 @@ static void print_gaps(void)
 static int m_gap_distance = 0;
 static int m_gap_close_low = 0;
 static int m_gap_close_high = 0;
+static int h1, h2, o1, o2, c1, c2, l1, l2;
+
+static int is_one_stab(void)
+{
+	int up1, obj1, down1, total1;
+	int up2, obj2, down2, total2;
+
+	if (o1 <= c1) return 0;
+	total1 = h1 - l1;
+	//up1 = h1 - o1;
+	//if (up1 > total1 * 40 / 100) return 0;
+	obj1 = o1 - c1;
+	if (obj1 < c1 * 1.5 / 100) return 0;
+	down1 = c1 - l1;
+
+	if (c2 < o2) return 0;
+	total2 = h2 - l2;
+	//up2 = h2 - c2;
+	//if (up2 > total2 * 40 / 100) return 0;
+	obj2 = c2 - o2;
+	if (obj2 < o2 * 1 / 100) return 0;
+	//down2 = o2 - l2;
+	//if (down2 > total2 * 40 / 100) return 0;
+
+	if (o2 > c1 + (obj1 / 1)) return 0;
+	if (c2 > o1 + (obj1 / 1)) return 0;
+	if (40 > (c2-o2) * 1000 / o2) return 0;
+
+	return 1;
+}
 
 static int is_one_jump(void)
 {
-	int i, l1;
-	int c1, c2, c3;
+	int i, c3;
 	//printf("s:%d e:%d\n", m_start_index, m_end_index);
 	gaps_parse();
 	if (m_gaps_len <= 0) return 0;
@@ -388,10 +424,25 @@ static int is_one_jump(void)
 		if (m_gaps[i].high) break;
 	}
 	if (i >= m_gaps_len) return 0;
+
+	do_look_one(m_end_index - 1);
+	if (glow <= 0) return 0;
+	o1 = gopen;
+	h1 = ghigh;
+	c1 = gclose;
+	l1 = glow;
 	do_look_one(m_end_index);
 	if (glow <= 0) return 0;
-	l1 = glow;
-	if (l1 > m_gaps[i].high * 102 / 100) return 0;
+	o2 = gopen;
+	h2 = ghigh;
+	c2 = gclose;
+	l2 = glow;
+
+	//if (l2 > m_gaps[i].high * 102 / 100) return 0;
+	if (l1 > m_gaps[i].high * 102 / 100 &&
+		l2 > m_gaps[i].high * 102) return 0;
+	if (is_one_stab() == 0) return 0;
+
 	m_gap_distance = m_gaps[i].index;
 
 	m_gap_close_low = 0; m_gap_close_high = 0;
