@@ -405,7 +405,7 @@ static int is_one_stab(void)
 
 	if (o2 > c1 + (obj1 / 1)) return 0;
 	if (c2 > o1 + (obj1 / 1)) return 0;
-	if (40 > (c2-o2) * 1000 / o2) return 0;
+	//if (40 > (c2-o2) * 1000 / o2) return 0;
 
 	return 1;
 }
@@ -439,8 +439,8 @@ static int is_one_jump(void)
 	l2 = glow;
 
 	//if (l2 > m_gaps[i].high * 102 / 100) return 0;
-	if (l1 > m_gaps[i].high * 102 / 100 &&
-		l2 > m_gaps[i].high * 102) return 0;
+	if (l1 > m_gaps[i].high * 103 / 100 &&
+		l2 > m_gaps[i].high * 103 / 100) return 0;
 	if (is_one_stab() == 0) return 0;
 
 	m_gap_distance = m_gaps[i].index;
