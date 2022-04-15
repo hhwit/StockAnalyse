@@ -207,7 +207,7 @@ static int get_day_file_data(char *code)
 		printf("Can't open file: %s\n", path);
 		return -1;
 	}
-	#define WEEK_FILE_LEN	20 * 1024
+	#define WEEK_FILE_LEN	40 * 1024
 	if (m_day_data == 0) 
 		m_day_data = malloc(WEEK_FILE_LEN);
 	memset(m_day_data, 0, WEEK_FILE_LEN);
